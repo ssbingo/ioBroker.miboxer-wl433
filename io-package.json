@@ -1,0 +1,129 @@
+{
+    "common": {
+        "name": "miboxer-wl433",
+        "version": "0.0.1",
+        "news": {
+            "0.0.1": {
+                "en": "Initial release: local control of the WL-433 gateway via the Tuya LAN protocol (on/off, mode, brightness, colour temperature, colour, countdown), raw access to datapoint 101 with checksum handling and gateway search in the local network",
+                "de": "Erste Version: lokale Steuerung des WL-433-Gateways über das Tuya-LAN-Protokoll (Ein/Aus, Modus, Helligkeit, Farbtemperatur, Farbe, Countdown), Rohzugriff auf Datenpunkt 101 mit Prüfsummenbehandlung und Gateway-Suche im lokalen Netzwerk",
+                "ru": "Первый выпуск: локальное управление шлюзом WL-433 по протоколу Tuya LAN (вкл/выкл, режим, яркость, цветовая температура, цвет, обратный отсчёт), прямой доступ к точке данных 101 с обработкой контрольной суммы и поиск шлюза в локальной сети",
+                "pt": "Primeira versão: controlo local do gateway WL-433 através do protocolo LAN da Tuya (ligar/desligar, modo, brilho, temperatura de cor, cor, contagem decrescente), acesso direto ao ponto de dados 101 com tratamento da soma de verificação e pesquisa do gateway na rede local",
+                "nl": "Eerste versie: lokale bediening van de WL-433-gateway via het Tuya-LAN-protocol (aan/uit, modus, helderheid, kleurtemperatuur, kleur, aftellen), directe toegang tot datapunt 101 met controlesomafhandeling en zoeken naar de gateway in het lokale netwerk",
+                "fr": "Première version : pilotage local de la passerelle WL-433 via le protocole LAN Tuya (marche/arrêt, mode, luminosité, température de couleur, couleur, compte à rebours), accès brut au point de données 101 avec gestion de la somme de contrôle et recherche de la passerelle sur le réseau local",
+                "it": "Prima versione: controllo locale del gateway WL-433 tramite il protocollo LAN di Tuya (acceso/spento, modalità, luminosità, temperatura colore, colore, conto alla rovescia), accesso diretto al punto dati 101 con gestione del checksum e ricerca del gateway nella rete locale",
+                "es": "Primera versión: control local de la pasarela WL-433 mediante el protocolo LAN de Tuya (encendido/apagado, modo, brillo, temperatura de color, color, cuenta atrás), acceso directo al punto de datos 101 con gestión de la suma de verificación y búsqueda de la pasarela en la red local",
+                "pl": "Pierwsze wydanie: lokalne sterowanie bramką WL-433 przez protokół LAN Tuya (wł./wył., tryb, jasność, temperatura barwowa, kolor, odliczanie), bezpośredni dostęp do punktu danych 101 z obsługą sumy kontrolnej i wyszukiwanie bramki w sieci lokalnej",
+                "uk": "Перший випуск: локальне керування шлюзом WL-433 через протокол Tuya LAN (увімк./вимк., режим, яскравість, колірна температура, колір, зворотний відлік), прямий доступ до точки даних 101 з обробкою контрольної суми та пошук шлюзу в локальній мережі",
+                "zh-cn": "首个版本：通过涂鸦局域网协议本地控制 WL-433 网关（开/关、模式、亮度、色温、颜色、倒计时），可直接访问数据点 101 并处理校验和，支持在局域网中搜索网关"
+            }
+        },
+        "titleLang": {
+            "en": "MiBoxer WL-433 Pool Light",
+            "de": "MiBoxer WL-433 Poolleuchte",
+            "ru": "MiBoxer WL-433 Свет для бассейна",
+            "pt": "Luz de piscina MiBoxer WL-433",
+            "nl": "MiBoxer WL-433 zwembadlamp",
+            "fr": "Lampe de piscine MiBoxer WL-433",
+            "it": "Luce per piscina MiBoxer WL-433",
+            "es": "Luz para piscina MiBoxer WL-433",
+            "pl": "Lampa basenowa MiBoxer WL-433",
+            "uk": "Світильник для басейну MiBoxer WL-433",
+            "zh-cn": "MiBoxer WL-433 泳池灯"
+        },
+        "desc": {
+            "en": "Local control of MiBoxer PW01/PW02 LoRa pool lights via the WL-433 gateway (Tuya local protocol, no cloud)",
+            "de": "Lokale Steuerung der MiBoxer PW01/PW02 LoRa-Poolleuchten über das WL-433-Gateway (lokales Tuya-Protokoll, keine Cloud)",
+            "ru": "Локальное управление освещением бассейна LoRa MiBoxer PW01/PW02 через шлюз WL-433 (локальный протокол Tuya, без облака)",
+            "pt": "Controle local das luzes da piscina MiBoxer PW01/PW02 LoRa através do gateway WL-433 (protocolo local Tuya, sem nuvem)",
+            "nl": "Lokale bediening van MiBoxer PW01/PW02 LoRa zwembadverlichting via de WL-433 gateway (Tuya lokaal protocol, geen cloud)",
+            "fr": "Contrôle local des lumières de piscine MiBoxer PW01/PW02 LoRa via la passerelle WL-433 (protocole local Tuya, pas de cloud)",
+            "it": "Controllo locale delle luci della piscina MiBoxer PW01/PW02 LoRa tramite il gateway WL-433 (protocollo locale Tuya, senza cloud)",
+            "es": "Control local de las luces de piscina MiBoxer PW01/PW02 LoRa a través de la puerta de enlace WL-433 (protocolo local Tuya, sin nube)",
+            "pl": "Lokalne sterowanie oświetleniem basenowym MiBoxer PW01/PW02 LoRa poprzez bramkę WL-433 (protokół lokalny Tuya, bez chmury)",
+            "uk": "Локальне керування освітленням басейну MiBoxer PW01/PW02 LoRa через шлюз WL-433 (локальний протокол Tuya, без хмари)",
+            "zh-cn": "通过WL-433网关本地控制MiBoxer PW01/PW02 LoRa泳池灯（涂鸦本地协议，无云端）"
+        },
+        "authors": [
+            "ssbingo <s.sternitzke@online.de>"
+        ],
+        "keywords": [
+            "miboxer",
+            "mi-light",
+            "wl-433",
+            "pw01",
+            "pw02",
+            "pool",
+            "light",
+            "tuya",
+            "lora"
+        ],
+        "licenseInformation": {
+            "type": "free",
+            "license": "MIT"
+        },
+        "platform": "Javascript/Node.js",
+        "icon": "miboxer-wl433.png",
+        "enabled": true,
+        "extIcon": "https://raw.githubusercontent.com/ssbingo/ioBroker.miboxer-wl433/main/admin/miboxer-wl433.png",
+        "readme": "https://github.com/ssbingo/ioBroker.miboxer-wl433/blob/main/README.md",
+        "loglevel": "info",
+        "tier": 3,
+        "mode": "daemon",
+        "type": "lighting",
+        "compact": true,
+        "connectionType": "local",
+        "dataSource": "push",
+        "adminUI": {
+            "config": "json"
+        },
+        "messagebox": true,
+        "dependencies": [
+            {
+                "js-controller": ">=6.0.11"
+            }
+        ],
+        "globalDependencies": [
+            {
+                "admin": ">=8.0.0"
+            }
+        ]
+    },
+    "native": {
+        "ip": "",
+        "deviceId": "",
+        "localKey": "",
+        "protocolVersion": "3.3",
+        "reconnectInterval": 30,
+        "pollInterval": 60
+    },
+    "encryptedNative": [
+        "localKey"
+    ],
+    "protectedNative": [
+        "localKey"
+    ],
+    "objects": [],
+    "instanceObjects": [
+        {
+            "_id": "info",
+            "type": "channel",
+            "common": {
+                "name": "Information"
+            },
+            "native": {}
+        },
+        {
+            "_id": "info.connection",
+            "type": "state",
+            "common": {
+                "role": "indicator.connected",
+                "name": "Device or service connected",
+                "type": "boolean",
+                "read": true,
+                "write": false,
+                "def": false
+            },
+            "native": {}
+        }
+    ]
+}
