@@ -99,7 +99,7 @@ WL-433 przesyła polecenia stref i scen w specyficznym dla producenta punkcie da
 
 ### 0.0.1 (2026-09-21)
 
-- (ssbingo) Pierwsze wydanie: lokalne sterowanie bramką WL-433 przez protokół LAN Tuya (wł./wył., tryb, jasność, temperatura barwowa, kolor, odliczanie), bezpośredni dostęp do punktu danych 101 z obsługą sumy kontrolnej i wyszukiwanie bramki w sieci lokalnej
+- (ssbingo) Pierwsze wydanie: lokalne sterowanie bramką WL-433 przez protokół LAN Tuya (wł./wył., tryb, jasność, temperatura barwowa, kolor, odliczanie), bezpośredni dostęp do punktu danych 101 z obsługą sumy kontrolnej i wyszukiwanie bramki w sieci lokalnej, szczegółowe logowanie debugowania z etykietami komponentów, numerami poleceń i czasami trwania (sekrety nigdy nie są logowane)
 
 ## Licencja
 

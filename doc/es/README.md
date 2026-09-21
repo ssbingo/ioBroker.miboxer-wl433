@@ -99,7 +99,7 @@ El WL-433 transmite los comandos de zonas y escenas en el punto de datos 101 esp
 
 ### 0.0.1 (2026-09-21)
 
-- (ssbingo) Primera versión: control local de la pasarela WL-433 mediante el protocolo LAN de Tuya (encendido/apagado, modo, brillo, temperatura de color, color, cuenta atrás), acceso directo al punto de datos 101 con gestión de la suma de verificación y búsqueda de la pasarela en la red local
+- (ssbingo) Primera versión: control local de la pasarela WL-433 mediante el protocolo LAN de Tuya (encendido/apagado, modo, brillo, temperatura de color, color, cuenta atrás), acceso directo al punto de datos 101 con gestión de la suma de verificación y búsqueda de la pasarela en la red local, registro de depuración detallado con etiquetas de componentes, números de comando y duraciones (los secretos nunca se registran)
 
 ## Licencia
 

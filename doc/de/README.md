@@ -91,6 +91,26 @@ Das WL-433 überträgt Zonen- und Szenenbefehle im herstellerspezifischen Datenp
 - Das Gateway meldet seinen Status weiterhin an die Tuya-Cloud. Eine vollständige Internetsperre kann es unzuverlässig machen.
 - Diese erste Version wurde gegen eine Simulation des Gateways (Tuya-Protokoll 3.3) getestet. Rückmeldungen mit echter Hardware sind sehr willkommen.
 
+## Protokollierung und Fehlersuche
+
+Der Adapter protokolliert nach einem festen Schema, damit das Log jederzeit für eine Fehlersuche aussagekräftig ist:
+
+| Stufe | Was protokolliert wird |
+| --- | --- |
+| error | Konfigurationsfehler, mit denen der Adapter nicht arbeiten kann (Geräte-ID fehlt, Local Key nicht 16 Zeichen) |
+| warn | Probleme, bei denen du handeln musst – einmal gemeldet, danach nur noch auf Debug-Stufe, bis sie behoben sind: Gateway weist Verbindungen ab, Daten nicht entschlüsselbar (falscher Local Key), Befehle nicht ausgeführt oder nicht bestätigt, unerwartete Datenpunktwerte |
+| info | Meilensteine: Konfigurationsübersicht beim Start, Gateway gefunden, verbunden, Verbindung verloren, Verbindung wieder stabil |
+| debug | Jeder Schritt mit Eingaben, Entscheidungen und Laufzeiten: Datenpunktänderung → Umrechnung → Warteschlange → Senden → Bestätigung, jeder empfangene Datenpunkt und der aktualisierte State, Suche, Statusabfrage. Befehle (`#12`) und Verbindungsversuche (`Attempt #3`) sind nummeriert, sodass sich alle Zeilen eines Befehls verfolgen lassen |
+| silly | Zusätzlich die Protokollspur der Bibliothek tuyapi (Pakete, Ping/Pong) mit der Kennung `[tuyapi]` |
+
+Jede Meldung beginnt mit einer Kennung: `[cfg]` Konfiguration, `[conn]` Verbindung, `[rx]` Gateway → States,
+`[cmd]` States → Befehle, `[queue]` Befehlswarteschlange, `[poll]` Statusabfrage, `[disc]` Suche, `[dp101]` Roh-Frames,
+`[unload]` Beenden, `[tuyapi]` Bibliotheksspur. Local Key und Sitzungsschlüssel erscheinen nie im Log – die
+Konfigurationsübersicht zeigt nur die Länge des Schlüssels.
+
+Stufe ändern: Admin → **Instanzen** → Expertenmodus → Log-Stufe von `miboxer-wl433.0` → `debug` (oder `silly` für die
+Protokollspur; danach die Instanz neu starten). Bitte hänge bei Fehlermeldungen ein Debug-Log an.
+
 ## Changelog
 <!--
     Placeholder for the next version (at the beginning of the line):
@@ -99,7 +119,7 @@ Das WL-433 überträgt Zonen- und Szenenbefehle im herstellerspezifischen Datenp
 
 ### 0.0.1 (2026-09-21)
 
-- (ssbingo) Erste Version: lokale Steuerung des WL-433-Gateways über das Tuya-LAN-Protokoll (Ein/Aus, Modus, Helligkeit, Farbtemperatur, Farbe, Countdown), Rohzugriff auf Datenpunkt 101 mit Prüfsummenbehandlung und Gateway-Suche im lokalen Netzwerk
+- (ssbingo) Erste Version: lokale Steuerung des WL-433-Gateways über das Tuya-LAN-Protokoll (Ein/Aus, Modus, Helligkeit, Farbtemperatur, Farbe, Countdown), Rohzugriff auf Datenpunkt 101 mit Prüfsummenbehandlung und Gateway-Suche im lokalen Netzwerk, ausführliches Debug-Logging mit Komponenten-Kennungen, Befehlsnummern und Laufzeiten (Geheimnisse werden nie protokolliert)
 
 ## Lizenz
 

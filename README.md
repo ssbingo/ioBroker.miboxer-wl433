@@ -130,6 +130,26 @@ added. The procedure is described in chapter 6 of the protocol analysis.
 - This first version was tested against a simulation of the gateway (Tuya protocol 3.3). Feedback with real hardware
   is very welcome.
 
+### Logging and debugging
+
+The adapter logs according to a fixed concept, so a log is meaningful for troubleshooting at any time:
+
+| Level | What is logged |
+| --- | --- |
+| error | Configuration errors that stop the adapter (device ID missing, local key not 16 characters) |
+| warn | Problems you have to act on — reported once and repeated only at debug level until they are resolved: gateway refuses connections, data that cannot be decoded (wrong local key), commands that were not executed or not confirmed, unexpected datapoint values |
+| info | Milestones: configuration summary at start, gateway found, connected, connection lost, connection stable again |
+| debug | Every step with its inputs, decisions and durations: state change → datapoint translation → command queue → sending → confirmation, every received datapoint and the state it updates, discovery, status refresh. Commands (`#12`) and connection attempts (`Attempt #3`) are numbered, so all lines of one command can be followed |
+| silly | Additionally the protocol trace of the tuyapi library (packets, ping/pong) with the tag `[tuyapi]` |
+
+Every message starts with a component tag: `[cfg]` configuration, `[conn]` connection, `[rx]` gateway → states,
+`[cmd]` states → commands, `[queue]` command queue, `[poll]` status refresh, `[disc]` discovery, `[dp101]` raw frames,
+`[unload]` shutdown, `[tuyapi]` library trace. The local key and the session keys never appear in the log — the
+configuration summary only shows the length of the key.
+
+To change the level: Admin → **Instances** → expert mode → log level of `miboxer-wl433.0` → `debug` (or `silly` for
+the protocol trace; restart the instance afterwards). Please attach a debug log when you report a problem.
+
 ## Development
 
 `npm run build` compiles the TypeScript sources, `npm test` runs the unit and package tests. `npm run test:e2e` runs
@@ -175,7 +195,7 @@ Credits: the checksum of datapoint 101 and the first published frames come from 
 
 ### 0.0.1 (2026-09-21)
 
-- (ssbingo) Initial release: local control of the WL-433 gateway via the Tuya LAN protocol (on/off, mode, brightness, colour temperature, colour, countdown), raw access to datapoint 101 with checksum handling and gateway search in the local network
+- (ssbingo) Initial release: local control of the WL-433 gateway via the Tuya LAN protocol (on/off, mode, brightness, colour temperature, colour, countdown), raw access to datapoint 101 with checksum handling and gateway search in the local network, detailed component-tagged debug logging with correlation IDs and durations (secrets are never logged)
 
 Older changelog entries can be found in [CHANGELOG_OLD.md](CHANGELOG_OLD.md).
 

@@ -74,7 +74,7 @@
     "check": "tsc --noEmit",
     "lint": "eslint -c eslint.config.mjs .",
     "translate": "translate-adapter",
-    "release": "release-script",
+    "release": "release-script --numChangelogEntries 10 --numNews 1",
     "dev-server": "dev-server"
   },
   "bugs": {

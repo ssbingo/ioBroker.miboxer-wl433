@@ -99,7 +99,7 @@ De WL-433 verstuurt zone- en scènecommando's in het fabrikantspecifieke datapun
 
 ### 0.0.1 (2026-09-21)
 
-- (ssbingo) Eerste versie: lokale bediening van de WL-433-gateway via het Tuya-LAN-protocol (aan/uit, modus, helderheid, kleurtemperatuur, kleur, aftellen), directe toegang tot datapunt 101 met controlesomafhandeling en zoeken naar de gateway in het lokale netwerk
+- (ssbingo) Eerste versie: lokale bediening van de WL-433-gateway via het Tuya-LAN-protocol (aan/uit, modus, helderheid, kleurtemperatuur, kleur, aftellen), directe toegang tot datapunt 101 met controlesomafhandeling en zoeken naar de gateway in het lokale netwerk, uitgebreide debuglogging met componentlabels, opdrachtnummers en tijdsduren (geheimen worden nooit gelogd)
 
 ## Licentie
 

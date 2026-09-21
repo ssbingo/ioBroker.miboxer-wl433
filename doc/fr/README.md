@@ -99,7 +99,7 @@ Le WL-433 transmet les commandes de zones et de scènes dans le point de donnée
 
 ### 0.0.1 (2026-09-21)
 
-- (ssbingo) Première version : pilotage local de la passerelle WL-433 via le protocole LAN Tuya (marche/arrêt, mode, luminosité, température de couleur, couleur, compte à rebours), accès brut au point de données 101 avec gestion de la somme de contrôle et recherche de la passerelle sur le réseau local
+- (ssbingo) Première version : pilotage local de la passerelle WL-433 via le protocole LAN Tuya (marche/arrêt, mode, luminosité, température de couleur, couleur, compte à rebours), accès brut au point de données 101 avec gestion de la somme de contrôle et recherche de la passerelle sur le réseau local, journalisation de débogage détaillée avec étiquettes de composants, numéros de commande et durées (les secrets ne sont jamais journalisés)
 
 ## Licence
 

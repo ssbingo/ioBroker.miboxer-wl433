@@ -99,7 +99,7 @@ Il WL-433 trasmette i comandi di zone e scene nel punto dati 101 specifico del p
 
 ### 0.0.1 (2026-09-21)
 
-- (ssbingo) Prima versione: controllo locale del gateway WL-433 tramite il protocollo LAN di Tuya (acceso/spento, modalità, luminosità, temperatura colore, colore, conto alla rovescia), accesso diretto al punto dati 101 con gestione del checksum e ricerca del gateway nella rete locale
+- (ssbingo) Prima versione: controllo locale del gateway WL-433 tramite il protocollo LAN di Tuya (acceso/spento, modalità, luminosità, temperatura colore, colore, conto alla rovescia), accesso diretto al punto dati 101 con gestione del checksum e ricerca del gateway nella rete locale, registrazione di debug dettagliata con etichette dei componenti, numeri di comando e durate (i segreti non vengono mai registrati)
 
 ## Licenza
 
