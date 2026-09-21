@@ -177,6 +177,8 @@ Credits: the checksum of datapoint 101 and the first published frames come from 
 
 - (ssbingo) Initial release: local control of the WL-433 gateway via the Tuya LAN protocol (on/off, mode, brightness, colour temperature, colour, countdown), raw access to datapoint 101 with checksum handling and gateway search in the local network
 
+Older changelog entries can be found in [CHANGELOG_OLD.md](CHANGELOG_OLD.md).
+
 ## License
 
 MIT License
