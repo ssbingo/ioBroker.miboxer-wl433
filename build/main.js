@@ -28,6 +28,7 @@ var import_color = require("./lib/color");
 var import_discovery = require("./lib/discovery");
 var import_dp101 = require("./lib/dp101");
 var import_logging = require("./lib/logging");
+var import_object_names = require("./lib/object-names");
 var import_timers = require("./lib/timers");
 var import_objects = require("./lib/objects");
 var import_wl433 = require("./lib/wl433");
@@ -259,7 +260,9 @@ class MiboxerWl433 extends utils.Adapter {
     for (const definition of definitions) {
       await this.extendObject(definition.id, definition.obj);
     }
-    this.log.debug(`[cfg] ${definitions.length} objects created/updated for the zone mode "${this.zoneMode}"`);
+    this.log.debug(
+      `[cfg] ${definitions.length} objects created/updated for the zone mode "${this.zoneMode}" (names in ${import_object_names.LANGUAGES.length} languages)`
+    );
     const obsolete = this.zoneMode === "selector" ? import_objects.ZONES_FOLDER : "light.zone";
     if (await this.getObjectAsync(obsolete)) {
       await this.delObjectAsync(obsolete, { recursive: true });
@@ -1262,7 +1265,7 @@ class MiboxerWl433 extends utils.Adapter {
       await this.extendObject(id, {
         type: "state",
         common: {
-          name: { en: `Datapoint ${dp}`, de: `Datenpunkt ${dp}` },
+          name: (0, import_object_names.objectName)("rawDatapoint", dp),
           type,
           role: type === "boolean" ? "switch" : type === "number" ? "level" : "text",
           read: true,

@@ -175,6 +175,10 @@ Para mudar o nível: Admin → **Instâncias** → modo de especialista → nív
     ### **WORK IN PROGRESS**
 -->
 
+### 0.2.1 (2026-09-22)
+
+- (ssbingo) Nomes dos objetos nos 11 idiomas do admin (verificação de objetos E6001 do repositório ioBroker); os objetos existentes são atualizados no próximo arranque
+
 ### 0.2.0 (2026-09-22)
 
 - (ssbingo) Temporizadores locais no novo separador *Temporizadores* das definições da instância (até 50): hora do dia ou evento solar com desvio e desvio aleatório, dias da semana, época, zona, qualquer ação de luz e desligar após uma duração; estados `timers.active`, `timers.nextRun`, `timers.lastRun` e `timers.overview`

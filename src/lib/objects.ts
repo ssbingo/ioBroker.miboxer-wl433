@@ -2,6 +2,7 @@
  * Tuya datapoints of the WL-433 gateway and the ioBroker objects they are mapped to.
  */
 import { KELVIN_COLD, KELVIN_STEP, KELVIN_WARM } from "./color";
+import { objectName } from "./object-names";
 import { MAX_TIMERS } from "./timers";
 import { DMX_ADDRESS_MAX, DMX_ADDRESS_MIN, SCENE_COUNT, ZONE_COUNT } from "./wl433";
 
@@ -80,7 +81,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
     }
     const definitions = [
         state(`${prefix}.on`, {
-            name: { en: "On / off", de: "Ein / Aus" },
+            name: objectName("on"),
             type: "boolean",
             role: "switch.light",
             read: true,
@@ -88,7 +89,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
             def: false,
         }),
         state(`${prefix}.mode`, {
-            name: { en: "Mode", de: "Modus" },
+            name: objectName("mode"),
             type: "string",
             role: "text",
             read: true,
@@ -97,7 +98,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
             states: { white: "white", colour: "colour", scene: "scene" },
         }),
         state(`${prefix}.scene`, {
-            name: { en: "Scene M1–M9 (0 = no scene)", de: "Szene M1–M9 (0 = keine Szene)" },
+            name: objectName("scene"),
             type: "number",
             role: "level",
             read: true,
@@ -108,7 +109,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
             states: sceneStates,
         }),
         state(`${prefix}.brightness`, {
-            name: { en: "Brightness", de: "Helligkeit" },
+            name: objectName("brightness"),
             type: "number",
             role: "level.dimmer",
             read: true,
@@ -119,7 +120,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
             def: 100,
         }),
         state(`${prefix}.colorTemperature`, {
-            name: { en: "Colour temperature (white mode)", de: "Farbtemperatur (Weißmodus)" },
+            name: objectName("colorTemperature"),
             type: "number",
             role: "level.color.temperature",
             read: true,
@@ -131,7 +132,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
             def: KELVIN_COLD,
         }),
         state(`${prefix}.color`, {
-            name: { en: "Colour #rrggbb (colour mode)", de: "Farbe #rrggbb (Farbmodus)" },
+            name: objectName("color"),
             type: "string",
             role: "level.color.rgb",
             read: true,
@@ -139,7 +140,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
             def: "#ffffff",
         }),
         state(`${prefix}.hue`, {
-            name: { en: "Hue (colour mode)", de: "Farbton (Farbmodus)" },
+            name: objectName("hue"),
             type: "number",
             role: "level.color.hue",
             read: true,
@@ -150,7 +151,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
             def: 0,
         }),
         state(`${prefix}.saturation`, {
-            name: { en: "Saturation (colour mode)", de: "Sättigung (Farbmodus)" },
+            name: objectName("saturation"),
             type: "number",
             role: "level.color.saturation",
             read: true,
@@ -161,7 +162,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
             def: 100,
         }),
         state(`${prefix}.speedUp`, {
-            name: { en: "Scene faster (S+)", de: "Szene schneller (S+)" },
+            name: objectName("speedUp"),
             type: "boolean",
             role: "button",
             read: false,
@@ -169,7 +170,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
             def: false,
         }),
         state(`${prefix}.speedDown`, {
-            name: { en: "Scene slower (S-)", de: "Szene langsamer (S-)" },
+            name: objectName("speedDown"),
             type: "boolean",
             role: "button",
             read: false,
@@ -188,7 +189,7 @@ function controlStates(prefix: string, withDefaults: boolean): ObjectDefinition[
 /** Objects that exist in both zone modes (dynamic "raw.dp<n>" states are created on demand) */
 export const BASE_OBJECTS: ObjectDefinition[] = [
     state("info.ip", {
-        name: { en: "IP address of the gateway", de: "IP-Adresse des Gateways" },
+        name: objectName("ip"),
         type: "string",
         role: "info.ip",
         read: true,
@@ -198,7 +199,7 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
 
     ...controlStates("light", true),
     state("light.countdown", {
-        name: { en: "Countdown until toggle (DP 26)", de: "Countdown bis zum Umschalten (DP 26)" },
+        name: objectName("countdown"),
         type: "number",
         role: "level.timer",
         read: true,
@@ -209,12 +210,9 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
         def: 0,
     }),
 
-    channel("dp101", {
-        en: "Datapoint 101 (raw frames of zones, scenes and status)",
-        de: "Datenpunkt 101 (Roh-Frames für Zonen, Szenen und Status)",
-    }),
+    channel("dp101", objectName("dp101")),
     state("dp101.raw", {
-        name: { en: "Last frame as Base64 (writable)", de: "Letzter Frame als Base64 (schreibbar)" },
+        name: objectName("dp101Raw"),
         type: "string",
         role: "text",
         read: true,
@@ -222,10 +220,7 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
         def: "",
     }),
     state("dp101.hex", {
-        name: {
-            en: "Last frame as hex (writable, checksum is added automatically)",
-            de: "Letzter Frame als Hex (schreibbar, Prüfsumme wird automatisch ergänzt)",
-        },
+        name: objectName("dp101Hex"),
         type: "string",
         role: "text",
         read: true,
@@ -233,7 +228,7 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
         def: "",
     }),
     state("dp101.checksumValid", {
-        name: { en: "Checksum of the last frame is valid", de: "Prüfsumme des letzten Frames ist gültig" },
+        name: objectName("dp101ChecksumValid"),
         type: "boolean",
         role: "indicator",
         read: true,
@@ -241,10 +236,7 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
         def: false,
     }),
     state("dp101.history", {
-        name: {
-            en: `Last ${DP101_HISTORY_LENGTH} frames (received and sent)`,
-            de: `Letzte ${DP101_HISTORY_LENGTH} Frames (empfangen und gesendet)`,
-        },
+        name: objectName("dp101History", DP101_HISTORY_LENGTH),
         type: "string",
         role: "json",
         read: true,
@@ -252,14 +244,11 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
         def: "[]",
     }),
 
-    channel("raw", { en: "Other datapoints", de: "Weitere Datenpunkte" }),
+    channel("raw", objectName("raw")),
 
-    channel("settings", { en: "Gateway settings", de: "Gateway-Einstellungen" }),
+    channel("settings", objectName("settings")),
     state("settings.dmxAddress", {
-        name: {
-            en: "DMX start address (5 channels: R, G, B, cold white, warm white)",
-            de: "DMX-Startadresse (5 Kanäle: R, G, B, Kaltweiß, Warmweiß)",
-        },
+        name: objectName("dmxAddress"),
         type: "number",
         role: "level",
         read: true,
@@ -268,12 +257,9 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
         max: DMX_ADDRESS_MAX,
     }),
 
-    channel("timers", {
-        en: "Timers (tab Timers in the instance settings)",
-        de: "Timer (Reiter Timer in den Instanzeinstellungen)",
-    }),
+    channel("timers", objectName("timers")),
     state("timers.active", {
-        name: { en: "Timers active (false = all timers paused)", de: "Timer aktiv (false = alle Timer pausiert)" },
+        name: objectName("timersActive"),
         type: "boolean",
         role: "switch.enable",
         read: true,
@@ -281,7 +267,7 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
         def: true,
     }),
     state("timers.nextRun", {
-        name: { en: "Next timer run", de: "Nächste Timer-Ausführung" },
+        name: objectName("timersNextRun"),
         type: "string",
         role: "text",
         read: true,
@@ -289,7 +275,7 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
         def: "",
     }),
     state("timers.lastRun", {
-        name: { en: "Last timer run", de: "Letzte Timer-Ausführung" },
+        name: objectName("timersLastRun"),
         type: "string",
         role: "text",
         read: true,
@@ -297,10 +283,7 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
         def: "",
     }),
     state("timers.overview", {
-        name: {
-            en: `All timers (max. ${MAX_TIMERS}) with their next run`,
-            de: `Alle Timer (max. ${MAX_TIMERS}) mit nächster Ausführung`,
-        },
+        name: objectName("timersOverview", MAX_TIMERS),
         type: "string",
         role: "json",
         read: true,
@@ -315,15 +298,7 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
  * @param zoneMode - configured zone mode
  */
 export function lightChannel(zoneMode: ZoneMode): ObjectDefinition {
-    return zoneMode === "selector"
-        ? channel("light", {
-              en: "Pool lights (status of the gateway, commands to the zone in light.zone)",
-              de: "Poolleuchten (Status des Gateways, Befehle an die Zone in light.zone)",
-          })
-        : channel("light", {
-              en: "Pool lights (status of the gateway, commands to all zones)",
-              de: "Poolleuchten (Status des Gateways, Befehle an alle Zonen)",
-          });
+    return channel("light", objectName(zoneMode === "selector" ? "lightSelector" : "lightAllZones"));
 }
 
 /** Zone selector of the zone mode "selector" */
@@ -333,10 +308,7 @@ export function zoneSelectorState(): ObjectDefinition {
         zoneStates[zone] = `zone ${zone}`;
     }
     return state("light.zone", {
-        name: {
-            en: "Zone for the commands of light.* (0 = all zones)",
-            de: "Zone für die Befehle von light.* (0 = alle Zonen)",
-        },
+        name: objectName("zoneSelector"),
         type: "number",
         role: "level",
         read: true,
@@ -355,13 +327,13 @@ export function zoneChannelObjects(): ObjectDefinition[] {
             id: ZONES_FOLDER,
             obj: {
                 type: "folder",
-                common: { name: { en: "Zones (last values sent)", de: "Zonen (zuletzt gesendete Werte)" } },
+                common: { name: objectName("zones") },
                 native: {},
             },
         },
     ];
     for (let zone = 1; zone <= ZONE_COUNT; zone++) {
-        definitions.push(channel(zoneChannelId(zone), { en: `Zone ${zone}`, de: `Zone ${zone}` }));
+        definitions.push(channel(zoneChannelId(zone), objectName("zone", zone)));
         definitions.push(...controlStates(zoneChannelId(zone), false));
     }
     return definitions;

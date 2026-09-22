@@ -175,6 +175,10 @@ Pour changer le niveau : Admin → **Instances** → mode expert → niveau de j
     ### **WORK IN PROGRESS**
 -->
 
+### 0.2.1 (2026-09-22)
+
+- (ssbingo) Noms des objets dans les 11 langues de l'admin (contrôle des objets E6001 du dépôt ioBroker) ; les objets existants sont mis à jour au prochain démarrage
+
 ### 0.2.0 (2026-09-22)
 
 - (ssbingo) Minuteries locales dans le nouvel onglet *Minuteries* des paramètres de l'instance (jusqu'à 50) : heure ou événement solaire avec décalage et décalage aléatoire, jours de la semaine, saison, zone, toutes les actions d'éclairage et extinction après une durée ; états `timers.active`, `timers.nextRun`, `timers.lastRun` et `timers.overview`

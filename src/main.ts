@@ -26,6 +26,7 @@ import {
 import { type DiscoveredDevice, DISCOVERY_PORTS, TuyaDiscovery } from "./lib/discovery";
 import { decodeDp101, type Dp101Frame, encodeDp101Hex } from "./lib/dp101";
 import { bridgeTuyapiDebug, formatDuration, redact, shorten } from "./lib/logging";
+import { LANGUAGES, objectName } from "./lib/object-names";
 import {
     ASTRO_TRIGGERS,
     describeAction,
@@ -449,7 +450,9 @@ class MiboxerWl433 extends utils.Adapter {
         for (const definition of definitions) {
             await this.extendObject(definition.id, definition.obj);
         }
-        this.log.debug(`[cfg] ${definitions.length} objects created/updated for the zone mode "${this.zoneMode}"`);
+        this.log.debug(
+            `[cfg] ${definitions.length} objects created/updated for the zone mode "${this.zoneMode}" (names in ${LANGUAGES.length} languages)`,
+        );
 
         const obsolete = this.zoneMode === "selector" ? ZONES_FOLDER : "light.zone";
         if (await this.getObjectAsync(obsolete)) {
@@ -1545,7 +1548,7 @@ class MiboxerWl433 extends utils.Adapter {
             await this.extendObject(id, {
                 type: "state",
                 common: {
-                    name: { en: `Datapoint ${dp}`, de: `Datenpunkt ${dp}` },
+                    name: objectName("rawDatapoint", dp),
                     type,
                     role: type === "boolean" ? "switch" : type === "number" ? "level" : "text",
                     read: true,

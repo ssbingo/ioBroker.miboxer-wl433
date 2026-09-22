@@ -175,6 +175,10 @@ Niveau wijzigen: Admin → **Instanties** → expertmodus → logniveau van `mib
     ### **WORK IN PROGRESS**
 -->
 
+### 0.2.1 (2026-09-22)
+
+- (ssbingo) Objectnamen in alle 11 talen van de admin (objectcontrole E6001 van de ioBroker-repository); bestaande objecten worden bij de volgende start bijgewerkt
+
 ### 0.2.0 (2026-09-22)
 
 - (ssbingo) Lokale timers in het nieuwe tabblad *Timers* van de instellingen van de instantie (maximaal 50): tijdstip of zonnegebeurtenis met verschuiving en willekeurige afwijking, weekdagen, seizoen, zone, elke lichtactie en uitschakelen na een bepaalde duur; datapunten `timers.active`, `timers.nextRun`, `timers.lastRun` en `timers.overview`

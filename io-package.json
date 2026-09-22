@@ -1,20 +1,20 @@
 {
     "common": {
         "name": "miboxer-wl433",
-        "version": "0.2.0",
+        "version": "0.2.1",
         "news": {
-            "0.2.0": {
-                "en": "Local timers in a new tab of the instance settings (up to 50): fixed time or sun events with offset and random shift, weekdays, season, zone and every light action, optional switch-off after a duration, pause via timers.active; DMX start address readable and writable (settings.dmxAddress); documentation of the DMX command, of key 06 05 and of the cloud timers of the app",
-                "de": "Lokale Timer in einem neuen Reiter der Instanzeinstellungen (bis zu 50): feste Uhrzeit oder Sonnenstand mit Verschiebung und Zufallsabweichung, Wochentage, Saison, Zone und jede Lichtaktion, optionales Ausschalten nach einer Dauer, Pause über timers.active; DMX-Startadresse les- und schreibbar (settings.dmxAddress); Dokumentation des DMX-Befehls, der Taste 06 05 und der Cloud-Timer der App",
-                "ru": "Локальные таймеры в новой вкладке настроек экземпляра (до 50): фиксированное время или солнечные события со смещением и случайным отклонением, дни недели, сезон, зона и любое действие света, необязательное выключение через заданное время, пауза через timers.active; начальный адрес DMX доступен для чтения и записи (settings.dmxAddress); документация команды DMX, клавиши 06 05 и облачных таймеров приложения",
-                "pt": "Temporizadores locais num novo separador das definições da instância (até 50): hora fixa ou eventos solares com desvio e desvio aleatório, dias da semana, época, zona e qualquer ação de luz, desligar opcional após uma duração, pausa via timers.active; endereço inicial DMX legível e gravável (settings.dmxAddress); documentação do comando DMX, da tecla 06 05 e dos temporizadores na nuvem da aplicação",
-                "nl": "Lokale timers in een nieuw tabblad van de instantie-instellingen (tot 50): vaste tijd of zonnegebeurtenissen met verschuiving en willekeurige afwijking, weekdagen, seizoen, zone en elke lichtactie, optioneel uitschakelen na een duur, pauzeren via timers.active; DMX-startadres lees- en schrijfbaar (settings.dmxAddress); documentatie van de DMX-opdracht, van toets 06 05 en van de cloudtimers van de app",
-                "fr": "Minuteries locales dans un nouvel onglet des paramètres de l'instance (jusqu'à 50) : heure fixe ou événements solaires avec décalage et décalage aléatoire, jours de la semaine, saison, zone et toute action d'éclairage, extinction facultative après une durée, pause via timers.active ; adresse de départ DMX lisible et modifiable (settings.dmxAddress) ; documentation de la commande DMX, de la touche 06 05 et des minuteries cloud de l'application",
-                "it": "Timer locali in una nuova scheda delle impostazioni dell'istanza (fino a 50): ora fissa o eventi solari con scostamento e scostamento casuale, giorni della settimana, stagione, zona e ogni azione della luce, spegnimento opzionale dopo una durata, pausa tramite timers.active; indirizzo iniziale DMX leggibile e scrivibile (settings.dmxAddress); documentazione del comando DMX, del tasto 06 05 e dei timer cloud dell'app",
-                "es": "Temporizadores locales en una nueva pestaña de los ajustes de la instancia (hasta 50): hora fija o eventos solares con desplazamiento y desviación aleatoria, días de la semana, temporada, zona y cualquier acción de luz, apagado opcional tras una duración, pausa mediante timers.active; dirección inicial DMX legible y escribible (settings.dmxAddress); documentación del comando DMX, de la tecla 06 05 y de los temporizadores en la nube de la aplicación",
-                "pl": "Lokalne timery w nowej karcie ustawień instancji (do 50): stała godzina lub zdarzenia słoneczne z przesunięciem i losowym odchyleniem, dni tygodnia, sezon, strefa i każda akcja światła, opcjonalne wyłączenie po czasie, pauza przez timers.active; adres początkowy DMX do odczytu i zapisu (settings.dmxAddress); dokumentacja polecenia DMX, klawisza 06 05 i chmurowych timerów aplikacji",
-                "uk": "Локальні таймери в новій вкладці налаштувань екземпляра (до 50): фіксований час або сонячні події зі зсувом і випадковим відхиленням, дні тижня, сезон, зона та будь-яка дія світла, необов'язкове вимкнення через заданий час, пауза через timers.active; початкова адреса DMX доступна для читання й запису (settings.dmxAddress); документація команди DMX, клавіші 06 05 і хмарних таймерів застосунку",
-                "zh-cn": "实例设置中新增定时器选项卡（最多 50 个）：固定时间或太阳事件，可设偏移和随机偏差，星期、季节、区域和任意灯光动作，可选在一段时间后关闭，可通过 timers.active 暂停；DMX 起始地址可读写（settings.dmxAddress）；记录了 DMX 命令、按键 06 05 以及应用云定时器"
+            "0.2.1": {
+                "en": "Object names in all 11 languages of the admin (object check E6001 of the ioBroker repository); existing objects are updated at the next start",
+                "de": "Objektnamen in allen 11 Sprachen des Admins (Objektprüfung E6001 des ioBroker-Repositorys); vorhandene Objekte werden beim nächsten Start aktualisiert",
+                "ru": "Названия объектов на всех 11 языках админки (проверка объектов E6001 репозитория ioBroker); существующие объекты обновляются при следующем запуске",
+                "pt": "Nomes dos objetos nos 11 idiomas do admin (verificação de objetos E6001 do repositório ioBroker); os objetos existentes são atualizados no próximo arranque",
+                "nl": "Objectnamen in alle 11 talen van de admin (objectcontrole E6001 van de ioBroker-repository); bestaande objecten worden bij de volgende start bijgewerkt",
+                "fr": "Noms des objets dans les 11 langues de l'admin (contrôle des objets E6001 du dépôt ioBroker) ; les objets existants sont mis à jour au prochain démarrage",
+                "it": "Nomi degli oggetti in tutte le 11 lingue dell'admin (controllo oggetti E6001 del repository ioBroker); gli oggetti esistenti vengono aggiornati al prossimo avvio",
+                "es": "Nombres de los objetos en los 11 idiomas del admin (comprobación de objetos E6001 del repositorio de ioBroker); los objetos existentes se actualizan en el próximo inicio",
+                "pl": "Nazwy obiektów we wszystkich 11 językach panelu admin (kontrola obiektów E6001 repozytorium ioBroker); istniejące obiekty są aktualizowane przy następnym uruchomieniu",
+                "uk": "Назви об'єктів усіма 11 мовами адмінки (перевірка об'єктів E6001 репозиторію ioBroker); наявні об'єкти оновлюються під час наступного запуску",
+                "zh-cn": "对象名称支持管理界面的全部 11 种语言（ioBroker 仓库对象检查 E6001）；现有对象会在下次启动时更新"
             }
         },
         "titleLang": {

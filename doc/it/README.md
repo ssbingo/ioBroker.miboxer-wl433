@@ -175,6 +175,10 @@ Per cambiare il livello: Admin → **Istanze** → modalità esperto → livello
     ### **WORK IN PROGRESS**
 -->
 
+### 0.2.1 (2026-09-22)
+
+- (ssbingo) Nomi degli oggetti in tutte le 11 lingue dell'admin (controllo oggetti E6001 del repository ioBroker); gli oggetti esistenti vengono aggiornati al prossimo avvio
+
 ### 0.2.0 (2026-09-22)
 
 - (ssbingo) Timer locali nella nuova scheda *Timer* delle impostazioni dell'istanza (fino a 50): ora del giorno o evento solare con scostamento e scostamento casuale, giorni della settimana, stagione, zona, ogni azione sulle lampade e spegnimento dopo una durata; stati `timers.active`, `timers.nextRun`, `timers.lastRun` e `timers.overview`

@@ -175,6 +175,10 @@ Stufe ändern: Admin → **Instanzen** → Expertenmodus → Log-Stufe von `mibo
     ### **WORK IN PROGRESS**
 -->
 
+### 0.2.1 (2026-09-22)
+
+- (ssbingo) Objektnamen in allen 11 Sprachen des Admins (Objektprüfung E6001 des ioBroker-Repositorys); vorhandene Objekte werden beim nächsten Start aktualisiert
+
 ### 0.2.0 (2026-09-22)
 
 - (ssbingo) Lokale Timer im neuen Reiter *Timer* der Instanzeinstellungen (bis zu 50): Uhrzeit oder Sonnenereignis mit Verschiebung und Zufallsabweichung, Wochentage, Saison, Zone, jede Lichtaktion und Ausschalten nach einer Dauer; Datenpunkte `timers.active`, `timers.nextRun`, `timers.lastRun` und `timers.overview`

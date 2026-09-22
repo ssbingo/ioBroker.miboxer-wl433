@@ -278,6 +278,10 @@ calculated with [suncalc](https://github.com/mourner/suncalc) by Vladimir Agafon
     ### **WORK IN PROGRESS**
 -->
 
+### 0.2.1 (2026-09-22)
+
+- (ssbingo) Object names in all 11 languages of the admin (object check E6001 of the ioBroker repository); existing objects are updated at the next start
+
 ### 0.2.0 (2026-09-22)
 
 - (ssbingo) Local timers in the new tab *Timers* of the instance settings (up to 50): time of day or sun event with offset and random shift, weekdays, season, zone, every light action and switching off after a duration; states `timers.active`, `timers.nextRun`, `timers.lastRun` and `timers.overview`

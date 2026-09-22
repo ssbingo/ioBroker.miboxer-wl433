@@ -175,6 +175,10 @@ Zmiana poziomu: Admin → **Instancje** → tryb eksperta → poziom logowania `
     ### **WORK IN PROGRESS**
 -->
 
+### 0.2.1 (2026-09-22)
+
+- (ssbingo) Nazwy obiektów we wszystkich 11 językach panelu admin (kontrola obiektów E6001 repozytorium ioBroker); istniejące obiekty są aktualizowane przy następnym uruchomieniu
+
 ### 0.2.0 (2026-09-22)
 
 - (ssbingo) Lokalne timery w nowej zakładce *Timery* ustawień instancji (do 50): godzina lub zdarzenie słoneczne z przesunięciem i losowym odchyleniem, dni tygodnia, sezon, strefa, każda akcja oświetlenia i wyłączanie po określonym czasie; stany `timers.active`, `timers.nextRun`, `timers.lastRun` i `timers.overview`
