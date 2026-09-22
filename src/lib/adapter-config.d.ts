@@ -16,6 +16,8 @@ declare global {
             reconnectInterval: number;
             /** Interval in seconds for a full status refresh, 0 = only rely on pushed updates */
             pollInterval: number;
+            /** "selector" = zone selector state light.zone, "channels" = one channel per zone (zones.zone1..8) */
+            zoneMode: string;
         }
     }
 }

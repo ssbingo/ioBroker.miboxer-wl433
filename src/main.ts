@@ -3,7 +3,8 @@
  *
  * Local control of MiBoxer PW01/PW02 LoRa pool lights via the WL-433 gateway.
  * The gateway is a single Tuya device and is controlled via the Tuya LAN protocol (TCP 6668), no cloud involved.
- * Background: doc/Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md, chapter 5.3 (path A2).
+ * Lights, zones and scenes are controlled with the vendor specific frames of datapoint 101 (src/lib/wl433.ts), the
+ * gateway reports its status the same way. Background: doc/Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md.
  *
  * Logging: see src/lib/logging.ts for the level concept. Every message carries a component tag:
  * [cfg] configuration, [conn] connection, [rx] gateway -> states, [cmd] states -> commands, [queue] command queue,
@@ -14,22 +15,80 @@ import * as utils from "@iobroker/adapter-core";
 import TuyaDevice from "tuyapi";
 import { CommandType } from "tuyapi/lib/message-parser";
 import {
-    formatTuyaHsv,
-    kelvinToRaw,
-    parseTuyaHsv,
-    percentToRaw,
-    rawToKelvin,
-    rawToPercent,
-    rgbHexToTuyaHsv,
-    tuyaHsvToRgbHex,
+    degreesToHueByte,
+    hueByteToDegrees,
+    hueSaturationToRgbHex,
+    kelvinToTemperatureStep,
+    rgbHexToHueSaturation,
+    temperatureStepToKelvin,
 } from "./lib/color";
 import { type DiscoveredDevice, DISCOVERY_PORTS, TuyaDiscovery } from "./lib/discovery";
 import { decodeDp101, type Dp101Frame, encodeDp101Hex } from "./lib/dp101";
 import { bridgeTuyapiDebug, formatDuration, redact, shorten } from "./lib/logging";
-import { COUNTDOWN_MAX, DP, DP101_HISTORY_LENGTH, LIGHT_MODES, OBJECT_DEFINITIONS } from "./lib/objects";
+import {
+    BASE_OBJECTS,
+    COUNTDOWN_MAX,
+    DP,
+    DP101_HISTORY_LENGTH,
+    LIGHT_MODES,
+    lightChannel,
+    STATUS_ONLY_DPS,
+    ZONE_MODES,
+    zoneChannelId,
+    zoneChannelObjects,
+    type ZoneMode,
+    ZONES_FOLDER,
+    zoneSelectorState,
+} from "./lib/objects";
+import {
+    buildCommand,
+    buildStatusQuery,
+    COMMAND,
+    describeCommand,
+    describeStatus,
+    FRAME_TYPE,
+    KEY,
+    parseStatus,
+    SCENE_COUNT,
+    type Wl433Mode,
+    type Wl433Status,
+    ZONE_ALL,
+    ZONE_COUNT,
+} from "./lib/wl433";
 
 type DpValue = string | number | boolean;
 type DpMap = Record<string, DpValue>;
+
+/** Values of the lights as the WL-433 knows them (hue byte, colour temperature step) */
+interface LightValues {
+    on?: boolean;
+    mode?: Wl433Mode;
+    /** scene 1..9, 0 = no scene */
+    scene?: number;
+    /** hue byte 0..255 */
+    hue?: number;
+    /** saturation 0..100 % */
+    saturation?: number;
+    /** colour temperature step 0..38 */
+    temperature?: number;
+    /** brightness 1..100 % */
+    brightness?: number;
+}
+
+/** A command of the WL-433 protocol in datapoint 101 */
+interface Wl433Command {
+    frame: Dp101Frame;
+    /** zone 0 = all zones, 1..8 */
+    zone: number;
+    /** e.g. "brightness 40 (zone 2)" */
+    description: string;
+    /** a queued command is replaced by a newer one with the same key, undefined = never replaced */
+    key: string | undefined;
+    /** values the command sets, they must appear in the next status of the gateway (empty = not visible there) */
+    update: LightValues;
+    /** the adapter's own status query: not recorded in the history, not confirmed */
+    internal: boolean;
+}
 
 /** A queued write to the gateway */
 interface Command {
@@ -41,6 +100,36 @@ interface Command {
     queuedAt: number;
     /** Called after the gateway accepted the command, with the time the command was sent */
     onSuccess?: (sentAt: number) => Promise<void>;
+    /** Datapoint 101 command: sent without waiting for an answer, confirmed by the next status of the gateway */
+    wl433?: Wl433Command;
+}
+
+/** A sent command that waits for the status of the gateway */
+interface PendingConfirmation {
+    seq: number;
+    source: string;
+    command: Wl433Command;
+    sentAt: number;
+}
+
+/** Where the commands of a control state go */
+interface Target {
+    /** "light" or "zones.zone<n>" */
+    channel: string;
+    /** 0 = all zones, 1..8 */
+    zone: number;
+    /** true for zones.zone<n>: its states show the last values sent, the gateway does not report zones */
+    isZoneChannel: boolean;
+}
+
+/** One frame of a state command */
+interface Step {
+    command: number;
+    value: number;
+    /** values the frame sets */
+    update: LightValues;
+    /** why the step is needed, for the log */
+    reason?: string;
 }
 
 /** Entry of dp101.history */
@@ -54,6 +143,7 @@ interface HistoryEntry {
 
 const PROTOCOL_VERSIONS = ["3.1", "3.3", "3.4", "3.5"];
 const DEFAULT_PROTOCOL_VERSION = "3.3";
+const DEFAULT_ZONE_MODE: ZoneMode = "selector";
 const LOCAL_KEY_LENGTH = 16;
 const TUYA_PORT = 6668;
 /** How long the LAN is searched for presence broadcasts */
@@ -64,12 +154,18 @@ const CONNECT_TIMEOUT_MS = 15_000;
 const SHORT_CONNECTION_MS = 10_000;
 /** Consecutive failures before the troubleshooting hint is logged */
 const FAILURES_BEFORE_HINT = 3;
-/** Collects rapid state changes (e.g. from a slider) into one Tuya command */
+/** Collects rapid state changes (e.g. from a slider) into one Tuya command, also the gap between DP 101 frames */
 const COMMAND_DEBOUNCE_MS = 150;
 const MAX_QUEUED_COMMANDS = 50;
 const DEFAULT_RECONNECT_S = 30;
 const MIN_RECONNECT_S = 5;
 const MIN_POLL_S = 10;
+/** The gateway reports its status about 2.5 s after the last change, after this time the status is requested */
+const STATUS_REPORT_TIMEOUT_MS = 6_000;
+/** The gateway answers a status query within about 0.4 s */
+const STATUS_QUERY_TIMEOUT_MS = 3_000;
+/** Unanswered status queries in a row before the user is warned */
+const UNANSWERED_QUERIES_BEFORE_WARNING = 3;
 
 function errorText(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -117,8 +213,54 @@ function commandName(commandByte: number | undefined): string {
     return `${COMMAND_NAMES.get(commandByte) ?? "unknown"} (${commandByte})`;
 }
 
-function seqList(commands: Command[]): string {
-    return commands.map(command => `#${command.seq}`).join(",");
+function seqList(items: { seq: number }[]): string {
+    return [...new Set(items.map(item => `#${item.seq}`))].join(",");
+}
+
+/**
+ * Key under which a queued command is replaced by a newer one: the last value of a slider wins. The speed keys are
+ * never replaced, every press counts.
+ *
+ * @param command - command byte
+ * @param value - value byte
+ * @param zone - zone 0..8
+ */
+function replaceKey(command: number, value: number, zone: number): string | undefined {
+    if (command !== COMMAND.KEY) {
+        return `${zone}:${command}`;
+    }
+    if (value === KEY.ON || value === KEY.OFF) {
+        return `${zone}:power`;
+    }
+    return value === KEY.WHITE ? `${zone}:white` : undefined;
+}
+
+/**
+ * Checks whether a status of the gateway shows all values a command set.
+ *
+ * @param status - decoded status
+ * @param update - values set by the command
+ */
+function statusMatches(status: Wl433Status, update: LightValues): boolean {
+    return statusDifferences(status, update).length === 0;
+}
+
+/**
+ * Lists the values of a command that the status does not show, for the log, e.g. ["brightness 40 (status 30)"].
+ *
+ * @param status - decoded status
+ * @param update - values set by the command
+ */
+function statusDifferences(status: Wl433Status, update: LightValues): string[] {
+    const differences: string[] = [];
+    for (const key of Object.keys(update) as (keyof LightValues)[]) {
+        const expected = update[key];
+        const reported = status[key];
+        if (expected !== undefined && expected !== reported) {
+            differences.push(`${key} ${String(expected)} (status ${String(reported)})`);
+        }
+    }
+    return differences;
 }
 
 class MiboxerWl433 extends utils.Adapter {
@@ -128,6 +270,9 @@ class MiboxerWl433 extends utils.Adapter {
     private unloading = false;
     private ip = "";
     private protocolVersion = DEFAULT_PROTOCOL_VERSION;
+    private zoneMode: ZoneMode = DEFAULT_ZONE_MODE;
+    /** zone of the light.* commands in the zone mode "selector", 0 = all zones */
+    private selectedZone = ZONE_ALL;
     private reconnectDelayMs = DEFAULT_RECONNECT_S * 1000;
     private pollDelayMs = 0;
     private connectAttempt = 0;
@@ -137,20 +282,37 @@ class MiboxerWl433 extends utils.Adapter {
     private discoveryWarned = false;
     private lastFoundIp = "";
     private undecodableReported = false;
+    private unknownStatusReported = false;
     private reconnectTimer: ioBroker.Timeout | undefined;
     private pollTimer: ioBroker.Timeout | undefined;
     private flushTimer: ioBroker.Timeout | undefined;
     private stableTimer: ioBroker.Timeout | undefined;
+    private confirmTimer: ioBroker.Timeout | undefined;
+    private queryTimer: ioBroker.Timeout | undefined;
     private sending = false;
     private commandSeq = 0;
     private commandQueue: Command[] = [];
     private dp101History: HistoryEntry[] = [];
     private lastDp101RxAt = 0;
+    /** last status reported by the gateway (datapoint 101) */
+    private status: Wl433Status | undefined;
+    private lastStatusAt = 0;
+    /** mode and scene before the lights were switched off (the status does not contain them while off) */
+    private lastMode: Wl433Mode | undefined;
+    private lastScene = 0;
+    /** sent commands waiting for the status that shows their effect */
+    private pendingConfirmations: PendingConfirmation[] = [];
+    /** the status was requested because the report of the gateway did not arrive */
+    private confirmationQueryAsked = false;
+    private confirmationProblemReported = false;
+    private statusQuerySentAt = 0;
+    private unansweredQueries = 0;
+    private queryProblemReported = false;
+    /** last values sent to the zone channels (zone mode "channels"), index 1..8 */
+    private readonly zoneValues: LightValues[] = Array.from({ length: ZONE_COUNT + 1 }, () => ({}));
     private restoreTuyapiDebug: (() => void) | undefined;
     /** Values that must never appear in the log */
     private secrets: string[] = [];
-    /** Last known value of every datapoint reported by the gateway */
-    private readonly dpCache: Record<string, unknown> = {};
     /** Value types of the dynamically created raw.dp<n> states */
     private readonly rawTypes = new Map<string, ioBroker.CommonType>();
     /** Mapped datapoints that arrived with an unexpected type (reported once) */
@@ -175,11 +337,10 @@ class MiboxerWl433 extends utils.Adapter {
     private async onReady(): Promise<void> {
         await this.setState("info.connection", false, true);
 
-        for (const definition of OBJECT_DEFINITIONS) {
-            await this.extendObject(definition.id, definition.obj);
-        }
-        this.log.debug(`[cfg] ${OBJECT_DEFINITIONS.length} objects created/updated`);
+        this.zoneMode = this.readZoneMode();
+        await this.createObjects();
         await this.restoreHistory();
+        await this.restoreZoneState();
 
         if (!this.readConfig()) {
             return;
@@ -198,9 +359,120 @@ class MiboxerWl433 extends utils.Adapter {
         this.subscribeStates("dp101.raw");
         this.subscribeStates("dp101.hex");
         this.subscribeStates("raw.*");
-        this.log.debug("[cfg] Subscribed to light.*, dp101.raw, dp101.hex, raw.*");
+        if (this.zoneMode === "channels") {
+            this.subscribeStates(`${ZONES_FOLDER}.*`);
+        }
+        this.log.debug(
+            `[cfg] Subscribed to light.*, dp101.raw, dp101.hex, raw.*${this.zoneMode === "channels" ? `, ${ZONES_FOLDER}.*` : ""}`,
+        );
 
         await this.connectGateway();
+    }
+
+    private readZoneMode(): ZoneMode {
+        const configured = String(this.config.zoneMode ?? "");
+        if ((ZONE_MODES as readonly string[]).includes(configured)) {
+            return configured as ZoneMode;
+        }
+        if (!configured) {
+            // instances created with version 0.0.1 do not have this setting until it is saved in the admin
+            this.log.debug(`[cfg] Zone mode not set yet, using "${DEFAULT_ZONE_MODE}"`);
+            return DEFAULT_ZONE_MODE;
+        }
+        this.log.warn(
+            `[cfg] Unknown zone mode "${configured}", using "${DEFAULT_ZONE_MODE}" (allowed: ${ZONE_MODES.join(", ")})`,
+        );
+        return DEFAULT_ZONE_MODE;
+    }
+
+    /** Creates the objects of the configured zone mode and removes those of the other one. */
+    private async createObjects(): Promise<void> {
+        await this.removeObsoleteModeValue();
+        const definitions = [lightChannel(this.zoneMode), ...BASE_OBJECTS];
+        if (this.zoneMode === "selector") {
+            definitions.push(zoneSelectorState());
+        } else {
+            definitions.push(...zoneChannelObjects());
+        }
+        for (const definition of definitions) {
+            await this.extendObject(definition.id, definition.obj);
+        }
+        this.log.debug(`[cfg] ${definitions.length} objects created/updated for the zone mode "${this.zoneMode}"`);
+
+        const obsolete = this.zoneMode === "selector" ? ZONES_FOLDER : "light.zone";
+        if (await this.getObjectAsync(obsolete)) {
+            await this.delObjectAsync(obsolete, { recursive: true });
+            this.log.info(`[cfg] Zone mode "${this.zoneMode}": removed ${obsolete}, it belongs to the other zone mode`);
+        }
+    }
+
+    /**
+     * Version 0.0.1 offered the mode "music", the WL-433 has no such mode. extendObject cannot remove a value from
+     * common.states, so the object is created again.
+     */
+    private async removeObsoleteModeValue(): Promise<void> {
+        const obj = await this.getObjectAsync("light.mode");
+        const states = obj?.common?.states;
+        if (states && typeof states === "object" && !Array.isArray(states) && "music" in states) {
+            await this.delObjectAsync("light.mode");
+            this.log.info(
+                '[cfg] light.mode is created again without the mode "music" (not supported by the WL-433); custom settings of this state (e.g. history) have to be set again',
+            );
+        }
+    }
+
+    /** Restores the selected zone and the last values of the zone channels. */
+    private async restoreZoneState(): Promise<void> {
+        if (this.zoneMode === "selector") {
+            const state = await this.getStateAsync("light.zone");
+            const zone = Number(state?.val);
+            this.selectedZone = Number.isInteger(zone) && zone >= ZONE_ALL && zone <= ZONE_COUNT ? zone : ZONE_ALL;
+            this.log.debug(
+                `[cfg] light.* commands go to ${this.selectedZone === ZONE_ALL ? "all zones" : `zone ${this.selectedZone}`}`,
+            );
+            return;
+        }
+        for (let zone = 1; zone <= ZONE_COUNT; zone++) {
+            const values: LightValues = {};
+            const read = async (name: string): Promise<ioBroker.StateValue | undefined> =>
+                (await this.getStateAsync(`${zoneChannelId(zone)}.${name}`))?.val ?? undefined;
+            const on = await read("on");
+            if (typeof on === "boolean") {
+                values.on = on;
+            }
+            const mode = await read("mode");
+            if (typeof mode === "string" && (LIGHT_MODES as readonly string[]).includes(mode)) {
+                values.mode = mode as Wl433Mode;
+            }
+            const scene = await read("scene");
+            if (typeof scene === "number") {
+                values.scene = scene;
+            }
+            const hue = await read("hue");
+            if (typeof hue === "number") {
+                values.hue = degreesToHueByte(hue);
+            }
+            const saturation = await read("saturation");
+            if (typeof saturation === "number") {
+                values.saturation = saturation;
+            }
+            const kelvin = await read("colorTemperature");
+            if (typeof kelvin === "number") {
+                values.temperature = kelvinToTemperatureStep(kelvin);
+            }
+            const brightness = await read("brightness");
+            if (typeof brightness === "number") {
+                values.brightness = brightness;
+            }
+            this.zoneValues[zone] = values;
+        }
+        const restored = this.zoneValues
+            .map((values, zone) => (zone && Object.keys(values).length ? `zone ${zone} ${JSON.stringify(values)}` : ""))
+            .filter(Boolean);
+        this.log.debug(
+            `[cfg] Last confirmed values of the zone channels: ${restored.length ? restored.join(", ") : "none yet"} ` +
+                "(hue as byte 0-255, colour temperature as step 0-38)",
+        );
     }
 
     /**
@@ -258,10 +530,14 @@ class MiboxerWl433 extends utils.Adapter {
             return false;
         }
 
+        const zones =
+            this.zoneMode === "selector"
+                ? "zone selector light.zone"
+                : `one channel per zone (${zoneChannelId(1)} … ${zoneChannelId(ZONE_COUNT)})`;
         this.log.info(
             `[cfg] Gateway ${deviceId}, IP ${this.ip || "automatic (UDP discovery)"}, Tuya protocol ${this.protocolVersion}, ` +
                 `reconnect delay ${formatDuration(this.reconnectDelayMs)}, status refresh ${this.pollDelayMs ? formatDuration(this.pollDelayMs) : "off"}, ` +
-                `local key ${localKey.length} characters (hidden)`,
+                `zones: ${zones}, local key ${localKey.length} characters (hidden)`,
         );
         this.log.debug(`[cfg] Log level ${this.log.level}, node ${process.version}`);
         return true;
@@ -277,11 +553,13 @@ class MiboxerWl433 extends utils.Adapter {
             this.unloading = true;
             this.log.debug(
                 `[unload] Stopping: ${this.activeDiscoveries.size} discovery run(s), ${this.commandQueue.length} pending command(s), ` +
-                    `connection ${this.gatewayConnected ? "open" : "closed"}`,
+                    `${this.pendingConfirmations.length} unconfirmed command(s), connection ${this.gatewayConnected ? "open" : "closed"}`,
             );
             this.clearReconnectTimer();
             this.clearPollTimer();
             this.clearStableTimer();
+            this.clearConfirmTimer();
+            this.clearQueryTimer();
             if (this.flushTimer) {
                 this.clearTimeout(this.flushTimer);
                 this.flushTimer = undefined;
@@ -293,6 +571,7 @@ class MiboxerWl433 extends utils.Adapter {
                 this.log.debug(`[unload] Discarding pending commands ${seqList(this.commandQueue)}`);
             }
             this.commandQueue = [];
+            this.pendingConfirmations = [];
             this.destroyTuyaDevice("adapter stops");
             this.gatewayConnected = false;
             this.restoreTuyapiDebug?.();
@@ -421,7 +700,7 @@ class MiboxerWl433 extends utils.Adapter {
 
     /**
      * Discards the tuyapi instance. tuyapi reconnects implicitly for pending requests, so connect() of the
-     * discarded instance is disabled to make sure it can never occupy the single local connection again.
+     * discarded instance is disabled to make sure it can never occupy the local connection again.
      *
      * @param reason - why the instance is discarded (for the log)
      */
@@ -483,6 +762,7 @@ class MiboxerWl433 extends utils.Adapter {
         this.clearStableTimer();
         this.stableTimer = this.setTimeout(() => this.onConnectionStable(), SHORT_CONNECTION_MS);
         await this.setState("info.connection", true, true);
+        this.requestStatus("connected");
         this.schedulePoll();
     }
 
@@ -512,6 +792,7 @@ class MiboxerWl433 extends utils.Adapter {
         this.gatewayConnected = false;
         this.clearPollTimer();
         this.clearStableTimer();
+        this.clearQueryTimer();
         if (this.unloading) {
             return;
         }
@@ -525,6 +806,13 @@ class MiboxerWl433 extends utils.Adapter {
                 `[queue] Connection lost, ${this.commandQueue.length} pending command(s) ${seqList(this.commandQueue)} discarded`,
             );
             this.commandQueue = [];
+        }
+        if (this.pendingConfirmations.length) {
+            this.log.debug(
+                `[cmd] Connection lost, confirmation of ${seqList(this.pendingConfirmations)} abandoned (status is requested again after reconnecting)`,
+            );
+            this.pendingConfirmations = [];
+            this.clearConfirmTimer();
         }
         if (!wasConnected) {
             return;
@@ -618,7 +906,7 @@ class MiboxerWl433 extends utils.Adapter {
         }
     }
 
-    /** Requests the complete status, the answer arrives as "data" event */
+    /** Requests the DP 101 status and the standard datapoints (countdown, unknown datapoints). */
     private async pollStatus(): Promise<void> {
         const device = this.device;
         if (!device || !this.gatewayConnected) {
@@ -626,19 +914,71 @@ class MiboxerWl433 extends utils.Adapter {
         } else if (this.sending) {
             this.log.debug("[poll] Skipped: a command is being sent");
         } else {
+            this.requestStatus("status refresh");
             const started = Date.now();
             try {
-                this.log.debug("[poll] Requesting full status");
+                this.log.debug("[poll] Requesting all datapoints");
                 await device.get({ schema: true });
-                this.log.debug(`[poll] Status answered after ${formatDuration(Date.now() - started)}`);
+                this.log.debug(`[poll] Datapoints answered after ${formatDuration(Date.now() - started)}`);
             } catch (error) {
                 this.log.debug(
-                    `[poll] Status request failed after ${formatDuration(Date.now() - started)}: ${errorText(error)}`,
+                    `[poll] Datapoint request failed after ${formatDuration(Date.now() - started)}: ${errorText(error)}`,
                 );
             }
         }
         if (this.gatewayConnected) {
             this.schedulePoll();
+        }
+    }
+
+    /**
+     * Queues the DP 101 status query, the gateway answers with a status frame.
+     *
+     * @param reason - why the status is needed (for the log)
+     */
+    private requestStatus(reason: string): void {
+        if (!this.device || !this.gatewayConnected) {
+            this.log.debug(`[poll] Status query (${reason}) skipped: gateway not connected`);
+            return;
+        }
+        if (this.commandQueue.some(command => command.wl433?.internal)) {
+            this.log.debug(`[poll] Status query (${reason}) is already queued`);
+            return;
+        }
+        const seq = ++this.commandSeq;
+        this.log.debug(`[poll] #${seq} Requesting the DP 101 status (${reason})`);
+        const frame = buildStatusQuery();
+        this.enqueueWl433(seq, `status query (${reason})`, [
+            { frame, zone: ZONE_ALL, description: "status query", key: "query", update: {}, internal: true },
+        ]);
+    }
+
+    private onStatusQuerySent(seq: number): void {
+        this.statusQuerySentAt = Date.now();
+        this.clearQueryTimer();
+        this.queryTimer = this.setTimeout(() => {
+            this.queryTimer = undefined;
+            if (this.lastStatusAt >= this.statusQuerySentAt) {
+                return;
+            }
+            this.unansweredQueries++;
+            const text = `[poll] #${seq} Status query not answered within ${formatDuration(STATUS_QUERY_TIMEOUT_MS)} (${this.unansweredQueries} in a row)`;
+            if (this.unansweredQueries >= UNANSWERED_QUERIES_BEFORE_WARNING && !this.queryProblemReported) {
+                this.queryProblemReported = true;
+                this.log.warn(
+                    `${text}. The light states are not updated. Is the gateway a WL-433? ` +
+                        "Please report the model at https://github.com/ssbingo/ioBroker.miboxer-wl433/issues",
+                );
+            } else {
+                this.log.debug(text);
+            }
+        }, STATUS_QUERY_TIMEOUT_MS);
+    }
+
+    private clearQueryTimer(): void {
+        if (this.queryTimer) {
+            this.clearTimeout(this.queryTimer);
+            this.queryTimer = undefined;
         }
     }
 
@@ -838,46 +1178,16 @@ class MiboxerWl433 extends utils.Adapter {
     }
 
     private async applyDps(dps: Record<string, unknown>): Promise<void> {
-        Object.assign(this.dpCache, dps);
-
         for (const [dp, value] of Object.entries(dps)) {
             switch (dp) {
                 case DP.SWITCH:
+                    // arrives about 2 s before the DP 101 status, both always agree
                     if (typeof value === "boolean") {
                         await this.setMapped(dp, value, "light.on", value);
                     } else {
                         this.unexpectedValue(dp, value, "a boolean");
                     }
                     break;
-                case DP.MODE:
-                    if (typeof value === "string") {
-                        await this.setMapped(dp, value, "light.mode", value);
-                    } else {
-                        this.unexpectedValue(dp, value, "a string");
-                    }
-                    break;
-                case DP.BRIGHTNESS:
-                    if (typeof value !== "number") {
-                        this.unexpectedValue(dp, value, "a number");
-                    }
-                    // evaluated below together with the mode, in colour mode DP 24 carries the brightness
-                    break;
-                case DP.TEMPERATURE:
-                    if (typeof value === "number") {
-                        await this.setMapped(dp, value, "light.colorTemperature", rawToKelvin(value));
-                    } else {
-                        this.unexpectedValue(dp, value, "a number");
-                    }
-                    break;
-                case DP.COLOUR: {
-                    const hsv = parseTuyaHsv(value);
-                    if (hsv) {
-                        await this.setMapped(dp, value, "light.color", tuyaHsvToRgbHex(hsv));
-                    } else {
-                        this.unexpectedValue(dp, value, 'a colour "hhhhssssvvvv"');
-                    }
-                    break;
-                }
                 case DP.COUNTDOWN:
                     if (typeof value === "number") {
                         await this.setMapped(dp, value, "light.countdown", value);
@@ -889,32 +1199,15 @@ class MiboxerWl433 extends utils.Adapter {
                     await this.onDp101Received(value);
                     break;
                 default:
-                    await this.updateRawDatapoint(dp, value);
+                    if (STATUS_ONLY_DPS.has(dp)) {
+                        this.log.debug(
+                            `[rx] DP ${dp} = ${JSON.stringify(value)} not mapped: derived by the gateway, light.* follows the DP 101 status`,
+                        );
+                    } else {
+                        await this.updateRawDatapoint(dp, value);
+                    }
             }
         }
-
-        if (DP.MODE in dps || DP.BRIGHTNESS in dps || DP.COLOUR in dps) {
-            const brightness = this.currentBrightnessPercent();
-            if (brightness !== undefined) {
-                const source =
-                    this.dpCache[DP.MODE] === "colour" && parseTuyaHsv(this.dpCache[DP.COLOUR])
-                        ? `v of DP 24 (mode colour)`
-                        : `DP 22 (mode ${JSON.stringify(this.dpCache[DP.MODE])})`;
-                this.log.debug(`[rx] light.brightness = ${brightness} % from ${source}`);
-                await this.setStateChangedAsync("light.brightness", brightness, true);
-            }
-        }
-    }
-
-    private currentBrightnessPercent(): number | undefined {
-        if (this.dpCache[DP.MODE] === "colour") {
-            const hsv = parseTuyaHsv(this.dpCache[DP.COLOUR]);
-            if (hsv) {
-                return rawToPercent(hsv.v);
-            }
-        }
-        const raw = this.dpCache[DP.BRIGHTNESS];
-        return typeof raw === "number" ? rawToPercent(raw) : undefined;
     }
 
     private async onDp101Received(value: unknown): Promise<void> {
@@ -928,18 +1221,189 @@ class MiboxerWl433 extends utils.Adapter {
             frame = decodeDp101(value);
         } catch {
             this.log.debug(`[dp101] Received value ${JSON.stringify(value)} is not Base64, stored unchanged`);
-            await this.setState("dp101.raw", value, true);
+            await this.setStateChangedAsync("dp101.raw", value, true);
             return;
         }
+        const status = parseStatus(frame);
+        // the answers to the regular status query would flood the history, only changes are recorded
+        const unchanged = status?.type === "answer" && status.signature === this.status?.signature;
         this.log.debug(
-            `[dp101] Received ${frame.hex} (${frame.bytes.length} bytes, checksum ${frame.checksumValid ? "valid" : "INVALID"}, Base64 ${frame.base64})`,
+            `[dp101] Received ${frame.hex} (${frame.bytes.length} bytes, checksum ${frame.checksumValid ? "valid" : "INVALID"}, Base64 ${frame.base64})` +
+                `${unchanged ? ", status unchanged, not added to the history" : ""}`,
         );
         await this.setDp101States(frame);
-        await this.addToHistory(frame, "rx", this.lastDp101RxAt);
+        if (!unchanged) {
+            await this.addToHistory(frame, "rx", this.lastDp101RxAt);
+        }
+        if (status) {
+            await this.onStatus(status);
+            return;
+        }
+        const type = frame.bytes[0];
+        if (frame.checksumValid && (type === FRAME_TYPE.REPORT || type === FRAME_TYPE.ANSWER)) {
+            const text = `[dp101] Status frame ${frame.hex} has an unknown mode 0x${frame.bytes[4].toString(16)}, not evaluated`;
+            if (this.unknownStatusReported) {
+                this.log.debug(text);
+            } else {
+                this.unknownStatusReported = true;
+                this.log.warn(
+                    `${text}. Please report this frame at https://github.com/ssbingo/ioBroker.miboxer-wl433/issues`,
+                );
+            }
+        } else {
+            this.log.debug(
+                `[dp101] Frame type 0x${(type ?? 0).toString(16)} is not a status frame${frame.checksumValid ? "" : " (checksum invalid)"}, not evaluated`,
+            );
+        }
     }
 
     /**
-     * Records a frame the gateway accepted. Its answer frame usually arrives before the command is confirmed:
+     * Applies a status of the gateway: light.* shows it, pending commands are confirmed.
+     *
+     * @param status - decoded status frame
+     */
+    private async onStatus(status: Wl433Status): Promise<void> {
+        this.lastStatusAt = Date.now();
+        if (this.unansweredQueries) {
+            this.log.debug(`[poll] Gateway answers again after ${this.unansweredQueries} unanswered status queries`);
+            this.unansweredQueries = 0;
+            this.queryProblemReported = false;
+        }
+        if (status.mode) {
+            this.lastMode = status.mode;
+            this.lastScene = status.scene;
+        }
+        this.status = status;
+        const changed = await this.writeLightValues("light", {
+            on: status.on,
+            mode: status.mode,
+            scene: status.scene,
+            hue: status.hue,
+            saturation: status.saturation,
+            temperature: status.temperature,
+            brightness: status.brightness,
+        });
+        this.log.debug(
+            `[rx] DP 101 status (${status.type}): ${describeStatus(status)} -> ${changed.length ? `light: ${changed.join(", ")}` : "light.* unchanged"}`,
+        );
+        await this.checkConfirmations(status);
+    }
+
+    /**
+     * Writes light values to the states of a channel (acknowledged). The mode is only written if it is known, the
+     * colour only if hue and saturation are known.
+     *
+     * @param channel - "light" or "zones.zone<n>"
+     * @param values - values to write
+     * @returns the changed states as "name value" for the log
+     */
+    private async writeLightValues(channel: string, values: LightValues): Promise<string[]> {
+        const updates: [string, ioBroker.StateValue][] = [];
+        if (values.on !== undefined) {
+            updates.push(["on", values.on]);
+        }
+        if (values.mode !== undefined) {
+            updates.push(["mode", values.mode]);
+            updates.push(["scene", values.mode === "scene" ? (values.scene ?? 0) : 0]);
+        }
+        if (values.hue !== undefined) {
+            updates.push(["hue", hueByteToDegrees(values.hue)]);
+        }
+        if (values.saturation !== undefined) {
+            updates.push(["saturation", values.saturation]);
+        }
+        if (values.hue !== undefined && values.saturation !== undefined) {
+            updates.push(["color", hueSaturationToRgbHex(hueByteToDegrees(values.hue), values.saturation)]);
+        }
+        if (values.temperature !== undefined) {
+            updates.push(["colorTemperature", temperatureStepToKelvin(values.temperature)]);
+        }
+        if (values.brightness !== undefined) {
+            updates.push(["brightness", values.brightness]);
+        }
+        const changed: string[] = [];
+        for (const [name, value] of updates) {
+            const result = (await this.setStateChangedAsync(`${channel}.${name}`, value, true)) as unknown as
+                { notChanged?: boolean } | undefined;
+            if (!result?.notChanged) {
+                changed.push(`${name} ${JSON.stringify(value)}`);
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * Confirms the sent commands whose values appear in the status.
+     *
+     * @param status - decoded status frame
+     */
+    private async checkConfirmations(status: Wl433Status): Promise<void> {
+        if (!this.pendingConfirmations.length) {
+            return;
+        }
+        const now = Date.now();
+        const confirmed = this.pendingConfirmations.filter(pending => statusMatches(status, pending.command.update));
+        if (!confirmed.length) {
+            const waiting = this.pendingConfirmations
+                .map(pending => `#${pending.seq} ${statusDifferences(status, pending.command.update).join(", ")}`)
+                .join("; ");
+            this.log.debug(`[cmd] Status does not show the values of ${waiting} yet, waiting further`);
+            return;
+        }
+        this.pendingConfirmations = this.pendingConfirmations.filter(pending => !confirmed.includes(pending));
+        for (const pending of confirmed) {
+            this.log.debug(
+                `[cmd] #${pending.seq} ${pending.command.description} confirmed by the gateway status after ${formatDuration(now - pending.sentAt)}`,
+            );
+            await this.applyZoneUpdate(pending.command.zone, pending.command.update);
+        }
+        if (this.confirmationProblemReported) {
+            this.log.info("[cmd] The gateway confirms commands again");
+            this.confirmationProblemReported = false;
+        }
+        if (!this.pendingConfirmations.length) {
+            this.clearConfirmTimer();
+            this.confirmationQueryAsked = false;
+        }
+    }
+
+    /**
+     * Shows confirmed values in the zone channels (zone mode "channels"). A command for all zones updates every zone.
+     *
+     * @param zone - zone of the command, 0 = all zones
+     * @param update - confirmed values
+     */
+    private async applyZoneUpdate(zone: number, update: LightValues): Promise<void> {
+        if (this.zoneMode !== "channels" || !Object.keys(update).length) {
+            return;
+        }
+        const zones = zone === ZONE_ALL ? Array.from({ length: ZONE_COUNT }, (_, index) => index + 1) : [zone];
+        for (const target of zones) {
+            const merged: LightValues = { ...this.zoneValues[target], ...update };
+            this.zoneValues[target] = merged;
+            const values: LightValues = { ...update };
+            if (update.hue !== undefined || update.saturation !== undefined) {
+                values.hue = merged.hue;
+                values.saturation = merged.saturation;
+            }
+            if (update.mode !== undefined) {
+                values.scene = merged.scene;
+            }
+            const changed = await this.writeLightValues(zoneChannelId(target), values);
+            if (changed.length) {
+                this.log.debug(`[cmd] ${zoneChannelId(target)}: ${changed.join(", ")}`);
+            }
+        }
+    }
+
+    private async setDp101States(frame: Dp101Frame): Promise<void> {
+        await this.setStateChangedAsync("dp101.raw", frame.base64, true);
+        await this.setStateChangedAsync("dp101.hex", frame.hex, true);
+        await this.setStateChangedAsync("dp101.checksumValid", frame.checksumValid, true);
+    }
+
+    /**
+     * Records a raw frame the gateway accepted. Its answer frame usually arrives before the command is confirmed:
      * the answer must not be overwritten in the states and must not appear before the sent frame in the history.
      *
      * @param seq - command number
@@ -956,12 +1420,6 @@ class MiboxerWl433 extends utils.Adapter {
             );
         }
         await this.addToHistory(frame, "tx", sentAt);
-    }
-
-    private async setDp101States(frame: Dp101Frame): Promise<void> {
-        await this.setState("dp101.raw", frame.base64, true);
-        await this.setState("dp101.hex", frame.hex, true);
-        await this.setState("dp101.checksumValid", frame.checksumValid, true);
     }
 
     private async addToHistory(frame: Dp101Frame, dir: HistoryEntry["dir"], time: number): Promise<void> {
@@ -1043,41 +1501,11 @@ class MiboxerWl433 extends utils.Adapter {
 
     private async handleCommand(seq: number, id: string, val: ioBroker.StateValue): Promise<void> {
         switch (id) {
-            case "light.on":
-                this.enqueue(seq, id, { [DP.SWITCH]: toBoolean(val) });
-                return;
-            case "light.mode": {
-                const mode = String(val);
-                if (!(LIGHT_MODES as readonly string[]).includes(mode)) {
-                    throw new Error(`unknown mode, allowed: ${LIGHT_MODES.join(", ")}`);
-                }
-                this.enqueue(seq, id, { [DP.MODE]: mode });
-                return;
-            }
-            case "light.brightness":
-                this.enqueue(seq, id, this.brightnessCommand(seq, toNumber(val)));
-                return;
-            case "light.colorTemperature": {
-                const kelvin = toNumber(val);
-                const raw = kelvinToRaw(kelvin);
-                this.log.debug(`[cmd] #${seq} ${kelvin} K -> DP 23 = ${raw} (switches to white mode)`);
-                this.enqueue(seq, id, { [DP.MODE]: "white", [DP.TEMPERATURE]: raw });
-                return;
-            }
-            case "light.color": {
-                const hsv = rgbHexToTuyaHsv(String(val));
-                if (!hsv) {
-                    throw new Error('a colour like "#ff8800" is expected');
-                }
-                const colour = formatTuyaHsv(hsv);
-                this.log.debug(
-                    `[cmd] #${seq} ${String(val)} -> h ${hsv.h}, s ${hsv.s}, v ${hsv.v} -> DP 24 = "${colour}" (switches to colour mode)`,
-                );
-                this.enqueue(seq, id, { [DP.MODE]: "colour", [DP.COLOUR]: colour });
-                return;
-            }
             case "light.countdown":
                 this.enqueue(seq, id, { [DP.COUNTDOWN]: Math.round(clamp(toNumber(val), 0, COUNTDOWN_MAX)) });
+                return;
+            case "light.zone":
+                await this.selectZone(seq, val);
                 return;
             case "dp101.raw": {
                 const frame = decodeDp101(String(val));
@@ -1097,42 +1525,292 @@ class MiboxerWl433 extends utils.Adapter {
                 this.enqueueFrame(seq, id, frame);
                 return;
             }
-            default:
-                if (id.startsWith("raw.dp")) {
-                    await this.handleRawCommand(seq, id, val);
-                } else {
-                    this.log.debug(`[cmd] #${seq} ${id} is not writable by the adapter, ignored`);
-                }
         }
+        if (id.startsWith("raw.dp")) {
+            await this.handleRawCommand(seq, id, val);
+            return;
+        }
+        const resolved = this.resolveTarget(id);
+        if (!resolved) {
+            this.log.debug(`[cmd] #${seq} ${id} is not writable by the adapter, ignored`);
+            return;
+        }
+        const { target, field } = resolved;
+        const steps = this.buildSteps(seq, target, field, val);
+        if (!steps.length) {
+            return;
+        }
+        this.log.debug(
+            `[cmd] #${seq} ${id} -> ${target.zone === ZONE_ALL ? "all zones" : `zone ${target.zone}`}: ${steps
+                .map(
+                    step =>
+                        `${describeCommand(step.command, step.value, target.zone).replace(/ \((all zones|zone \d)\)$/, "")}` +
+                        `${step.reason ? ` (${step.reason})` : ""}`,
+                )
+                .join(", then ")}`,
+        );
+        this.enqueueWl433(
+            seq,
+            id,
+            steps.map(step => ({
+                frame: buildCommand(step.command, step.value, target.zone),
+                zone: target.zone,
+                description: describeCommand(step.command, step.value, target.zone),
+                key: replaceKey(step.command, step.value, target.zone),
+                update: step.update,
+                internal: false,
+            })),
+        );
     }
 
     /**
-     * Brightness 0 switches off. In colour mode the brightness is the v part of DP 24, otherwise DP 22.
-     * A brightness above 0 also switches the lights on, like a dimmer.
+     * Finds the target of a control state.
+     *
+     * @param id - state ID relative to the namespace
+     */
+    private resolveTarget(id: string): { target: Target; field: string } | undefined {
+        const light = /^light\.(\w+)$/.exec(id);
+        if (light) {
+            return {
+                target: {
+                    channel: "light",
+                    zone: this.zoneMode === "selector" ? this.selectedZone : ZONE_ALL,
+                    isZoneChannel: false,
+                },
+                field: light[1],
+            };
+        }
+        const zone = /^zones\.zone([1-8])\.(\w+)$/.exec(id);
+        if (zone && this.zoneMode === "channels") {
+            const number = Number(zone[1]);
+            return {
+                target: { channel: zoneChannelId(number), zone: number, isZoneChannel: true },
+                field: zone[2],
+            };
+        }
+        return undefined;
+    }
+
+    /**
+     * Values the decisions of a command are based on: the gateway status for light.*, the last values sent for a
+     * zone channel, each overlaid with the values of commands that are queued or not confirmed yet.
+     *
+     * @param target - target of the command
+     */
+    private currentValues(target: Target): LightValues {
+        let base: LightValues = {};
+        if (target.isZoneChannel) {
+            base = { ...this.zoneValues[target.zone] };
+        } else if (this.status) {
+            const status = this.status;
+            base = {
+                on: status.on,
+                mode: status.mode ?? this.lastMode,
+                scene: status.mode ? status.scene : this.lastScene,
+                hue: status.hue,
+                saturation: status.saturation,
+                temperature: status.temperature,
+                brightness: status.brightness,
+            };
+        }
+        const relevant = (command: Wl433Command): boolean =>
+            !command.internal && (!target.isZoneChannel || command.zone === target.zone || command.zone === ZONE_ALL);
+        for (const pending of this.pendingConfirmations) {
+            if (relevant(pending.command)) {
+                Object.assign(base, pending.command.update);
+            }
+        }
+        for (const queued of this.commandQueue) {
+            if (queued.wl433 && relevant(queued.wl433)) {
+                Object.assign(base, queued.wl433.update);
+            }
+        }
+        return base;
+    }
+
+    /**
+     * Translates a state change into the frames of the WL-433 protocol. Like the MiBoxer app, the adapter switches
+     * the lights on and changes the mode first where the command needs it.
      *
      * @param seq - command number
-     * @param percent - brightness 0..100
+     * @param target - where the command goes
+     * @param field - state name, e.g. "brightness"
+     * @param val - new value
      */
-    private brightnessCommand(seq: number, percent: number): DpMap {
-        if (percent <= 0) {
-            this.log.debug(`[cmd] #${seq} brightness ${percent} % -> switch off (DP 20 = false)`);
-            return { [DP.SWITCH]: false };
+    private buildSteps(seq: number, target: Target, field: string, val: ioBroker.StateValue): Step[] {
+        const current = this.currentValues(target);
+        const steps: Step[] = [];
+        const switchOn = (): void => {
+            if (current.on !== true) {
+                steps.push({
+                    command: COMMAND.KEY,
+                    value: KEY.ON,
+                    update: { on: true },
+                    reason: current.on === false ? "lights are off" : "on/off state unknown",
+                });
+            }
+        };
+        const colourMode = (): void => {
+            if (current.mode !== "colour") {
+                const hue = current.hue ?? 0;
+                steps.push({
+                    command: COMMAND.HUE,
+                    value: hue,
+                    update: { mode: "colour", hue },
+                    reason: `switches to colour mode, mode is ${current.mode ?? "unknown"}`,
+                });
+            }
+        };
+
+        switch (field) {
+            case "on": {
+                const on = toBoolean(val);
+                steps.push({ command: COMMAND.KEY, value: on ? KEY.ON : KEY.OFF, update: { on } });
+                break;
+            }
+            case "brightness": {
+                const percent = toNumber(val);
+                if (percent <= 0) {
+                    steps.push({
+                        command: COMMAND.KEY,
+                        value: KEY.OFF,
+                        update: { on: false },
+                        reason: "0 % switches off",
+                    });
+                    break;
+                }
+                const brightness = clamp(Math.round(percent), 1, 100);
+                switchOn();
+                steps.push({ command: COMMAND.BRIGHTNESS, value: brightness, update: { brightness } });
+                break;
+            }
+            case "colorTemperature": {
+                const kelvin = toNumber(val);
+                const temperature = kelvinToTemperatureStep(kelvin);
+                switchOn();
+                if (current.mode !== "white") {
+                    steps.push({
+                        command: COMMAND.KEY,
+                        value: KEY.WHITE,
+                        update: { mode: "white" },
+                        reason: `mode is ${current.mode ?? "unknown"}`,
+                    });
+                }
+                steps.push({
+                    command: COMMAND.TEMPERATURE,
+                    value: temperature,
+                    update: { temperature },
+                    reason: `${kelvin} K -> ${temperatureStepToKelvin(temperature)} K`,
+                });
+                break;
+            }
+            case "hue": {
+                const degrees = toNumber(val);
+                const hue = degreesToHueByte(degrees);
+                switchOn();
+                steps.push({
+                    command: COMMAND.HUE,
+                    value: hue,
+                    update: { mode: "colour", hue },
+                    reason: `${degrees}°`,
+                });
+                break;
+            }
+            case "saturation": {
+                const saturation = clamp(Math.round(toNumber(val)), 0, 100);
+                switchOn();
+                colourMode();
+                steps.push({ command: COMMAND.SATURATION, value: saturation, update: { saturation } });
+                break;
+            }
+            case "color": {
+                const colour = rgbHexToHueSaturation(String(val));
+                if (!colour) {
+                    throw new Error('a colour like "#ff8800" is expected');
+                }
+                const hue = degreesToHueByte(colour.hue);
+                switchOn();
+                steps.push({
+                    command: COMMAND.HUE,
+                    value: hue,
+                    update: { mode: "colour", hue },
+                    reason: `${colour.hue}°`,
+                });
+                steps.push({
+                    command: COMMAND.SATURATION,
+                    value: colour.saturation,
+                    update: { saturation: colour.saturation },
+                });
+                break;
+            }
+            case "mode": {
+                const mode = String(val);
+                switchOn();
+                if (mode === "white") {
+                    steps.push({ command: COMMAND.KEY, value: KEY.WHITE, update: { mode: "white" } });
+                } else if (mode === "colour") {
+                    const hue = current.hue ?? 0;
+                    steps.push({
+                        command: COMMAND.HUE,
+                        value: hue,
+                        update: { mode: "colour", hue },
+                        reason: "the colour mode is selected with the last hue",
+                    });
+                } else if (mode === "scene") {
+                    const scene = current.scene && current.scene > 0 ? current.scene : 1;
+                    steps.push({
+                        command: COMMAND.SCENE,
+                        value: scene,
+                        update: { mode: "scene", scene },
+                        reason: "last scene",
+                    });
+                } else {
+                    throw new Error(`unknown mode, allowed: ${LIGHT_MODES.join(", ")}`);
+                }
+                break;
+            }
+            case "scene": {
+                const scene = toNumber(val);
+                if (!Number.isInteger(scene) || scene < 1 || scene > SCENE_COUNT) {
+                    throw new Error(`a scene from 1 to ${SCENE_COUNT} is expected (to leave the scene, select a mode)`);
+                }
+                switchOn();
+                steps.push({ command: COMMAND.SCENE, value: scene, update: { mode: "scene", scene } });
+                break;
+            }
+            case "speedUp":
+            case "speedDown":
+                if (!toBoolean(val)) {
+                    this.log.debug(
+                        `[cmd] #${seq} ${target.channel}.${field} = false ignored, write true to press the button`,
+                    );
+                    break;
+                }
+                steps.push({
+                    command: COMMAND.KEY,
+                    value: field === "speedUp" ? KEY.SPEED_UP : KEY.SPEED_DOWN,
+                    update: {},
+                    reason: "the speed is not reported by the gateway",
+                });
+                break;
+            default:
+                this.log.debug(`[cmd] #${seq} ${target.channel}.${field} is not writable by the adapter, ignored`);
         }
-        const dps: DpMap = {};
-        if (this.dpCache[DP.SWITCH] === false) {
-            dps[DP.SWITCH] = true;
+        return steps;
+    }
+
+    private async selectZone(seq: number, val: ioBroker.StateValue): Promise<void> {
+        if (this.zoneMode !== "selector") {
+            this.log.debug(`[cmd] #${seq} light.zone ignored, the zone mode is "${this.zoneMode}"`);
+            return;
         }
-        const hsv = this.dpCache[DP.MODE] === "colour" ? parseTuyaHsv(this.dpCache[DP.COLOUR]) : null;
-        if (hsv) {
-            dps[DP.COLOUR] = formatTuyaHsv({ ...hsv, v: percentToRaw(percent) });
-        } else {
-            dps[DP.BRIGHTNESS] = percentToRaw(percent);
+        const zone = toNumber(val);
+        if (!Number.isInteger(zone) || zone < ZONE_ALL || zone > ZONE_COUNT) {
+            throw new Error(`a zone from 0 (all zones) to ${ZONE_COUNT} is expected`);
         }
-        this.log.debug(
-            `[cmd] #${seq} brightness ${percent} % -> ${hsv ? "v of DP 24 (mode colour)" : `DP 22 (mode ${JSON.stringify(this.dpCache[DP.MODE])})`}` +
-                `${dps[DP.SWITCH] ? ", lights are off -> also DP 20 = true" : ""}`,
-        );
-        return dps;
+        this.selectedZone = zone;
+        await this.setState("light.zone", zone, true);
+        this.log.debug(`[cmd] #${seq} light.* commands now go to ${zone === ZONE_ALL ? "all zones" : `zone ${zone}`}`);
     }
 
     private async handleRawCommand(seq: number, id: string, val: ioBroker.StateValue): Promise<void> {
@@ -1160,7 +1838,53 @@ class MiboxerWl433 extends utils.Adapter {
         );
     }
 
-    private enqueue(seq: number, source: string, dps: DpMap, onSuccess?: Command["onSuccess"]): void {
+    /**
+     * Queues the frames of one state command. If the end of the queue holds the same kind of frames that were not
+     * sent yet (e.g. from a slider), they are replaced, so only the last value is sent.
+     *
+     * @param seq - command number
+     * @param source - state that caused the command
+     * @param commands - frames in the order they have to be sent
+     */
+    private enqueueWl433(seq: number, source: string, commands: Wl433Command[]): void {
+        if (!this.device || !this.gatewayConnected) {
+            throw new Error("gateway is not connected");
+        }
+        const tail = this.commandQueue.slice(-commands.length);
+        const replaceable =
+            commands.every(command => command.key !== undefined) &&
+            tail.length === commands.length &&
+            tail.every((queued, index) => queued.wl433?.key === commands[index].key);
+        if (replaceable) {
+            const offset = this.commandQueue.length - commands.length;
+            commands.forEach((command, index) => {
+                const replaced = this.commandQueue[offset + index];
+                this.commandQueue[offset + index] = {
+                    seq,
+                    source,
+                    dps: { [DP.RAW_FRAME]: command.frame.base64 },
+                    queuedAt: replaced.queuedAt,
+                    wl433: command,
+                };
+            });
+            this.log.debug(
+                `[queue] #${seq} replaces the not yet sent ${seqList(tail)} (${commands.map(command => command.description).join(", ")})`,
+            );
+            this.scheduleFlush();
+            return;
+        }
+        for (const command of commands) {
+            this.enqueue(seq, source, { [DP.RAW_FRAME]: command.frame.base64 }, undefined, command);
+        }
+    }
+
+    private enqueue(
+        seq: number,
+        source: string,
+        dps: DpMap,
+        onSuccess?: Command["onSuccess"],
+        wl433?: Wl433Command,
+    ): void {
         if (!this.device || !this.gatewayConnected) {
             throw new Error("gateway is not connected");
         }
@@ -1170,9 +1894,10 @@ class MiboxerWl433 extends utils.Adapter {
                 `[queue] More than ${MAX_QUEUED_COMMANDS} pending commands, dropping the oldest #${dropped?.seq} ${dropped?.source} ${JSON.stringify(dropped?.dps)}`,
             );
         }
-        this.commandQueue.push({ seq, source, dps, queuedAt: Date.now(), onSuccess });
+        this.commandQueue.push({ seq, source, dps, queuedAt: Date.now(), onSuccess, wl433 });
         this.log.debug(
-            `[queue] #${seq} queued ${JSON.stringify(dps)} (${this.commandQueue.length} pending${this.sending ? ", a command is being sent" : ""})`,
+            `[queue] #${seq} queued ${wl433 ? `${wl433.description} ${wl433.frame.hex}` : JSON.stringify(dps)} ` +
+                `(${this.commandQueue.length} pending${this.sending ? ", a command is being sent" : ""})`,
         );
         this.scheduleFlush();
     }
@@ -1216,17 +1941,29 @@ class MiboxerWl433 extends utils.Adapter {
         const batch = this.takeBatch();
         const data: DpMap = Object.assign({}, ...batch.map(command => command.dps));
         const ids = seqList(batch);
+        const wl433 = batch[0].wl433;
         this.sending = true;
         const sentAt = Date.now();
         try {
-            this.log.debug(
-                `[queue] Sending ${ids} to gateway: ${JSON.stringify(data)}` +
-                    `${batch.length > 1 ? ` (${batch.length} commands merged)` : ""}, waited ${formatDuration(sentAt - batch[0].queuedAt)} in queue`,
-            );
-            await device.set({ multiple: true, data });
-            this.log.debug(`[queue] ${ids} confirmed by gateway after ${formatDuration(Date.now() - sentAt)}`);
-            for (const command of batch) {
-                await command.onSuccess?.(sentAt);
+            if (wl433) {
+                // the gateway answers with its status about 2.5 s after the last change, the commands are confirmed
+                // by that status instead of blocking the queue
+                await device.set({ multiple: true, data, shouldWaitForResponse: false });
+                this.log.debug(
+                    `[queue] ${ids} sent ${wl433.description} as ${wl433.frame.hex}, waited ${formatDuration(sentAt - batch[0].queuedAt)} in queue` +
+                        `${wl433.internal ? "" : Object.keys(wl433.update).length ? ", waiting for the status of the gateway" : ", not visible in the status of the gateway"}`,
+                );
+                await this.onWl433Sent(batch[0], wl433, sentAt);
+            } else {
+                this.log.debug(
+                    `[queue] Sending ${ids} to gateway: ${JSON.stringify(data)}` +
+                        `${batch.length > 1 ? ` (${batch.length} commands merged)` : ""}, waited ${formatDuration(sentAt - batch[0].queuedAt)} in queue`,
+                );
+                await device.set({ multiple: true, data });
+                this.log.debug(`[queue] ${ids} confirmed by gateway after ${formatDuration(Date.now() - sentAt)}`);
+                for (const command of batch) {
+                    await command.onSuccess?.(sentAt);
+                }
             }
         } catch (error) {
             this.log.warn(
@@ -1240,6 +1977,80 @@ class MiboxerWl433 extends utils.Adapter {
             this.log.debug(`[queue] ${this.commandQueue.length} command(s) still pending`);
             this.scheduleFlush();
         }
+    }
+
+    /**
+     * Records a sent DP 101 command and waits for the status that confirms it.
+     *
+     * @param command - queued command
+     * @param wl433 - its DP 101 frame
+     * @param sentAt - time it was sent
+     */
+    private async onWl433Sent(command: Command, wl433: Wl433Command, sentAt: number): Promise<void> {
+        if (wl433.internal) {
+            this.onStatusQuerySent(command.seq);
+            return;
+        }
+        await this.addToHistory(wl433.frame, "tx", sentAt);
+        if (!Object.keys(wl433.update).length) {
+            return;
+        }
+        const superseded = this.pendingConfirmations.filter(pending => pending.command.key === wl433.key);
+        if (superseded.length) {
+            this.log.debug(
+                `[cmd] #${command.seq} ${wl433.description} supersedes the unconfirmed ${seqList(superseded)}`,
+            );
+            this.pendingConfirmations = this.pendingConfirmations.filter(pending => !superseded.includes(pending));
+        }
+        this.pendingConfirmations.push({ seq: command.seq, source: command.source, command: wl433, sentAt });
+        this.confirmationQueryAsked = false;
+        this.armConfirmTimer(STATUS_REPORT_TIMEOUT_MS);
+    }
+
+    private armConfirmTimer(delayMs: number): void {
+        this.clearConfirmTimer();
+        this.confirmTimer = this.setTimeout(() => {
+            this.confirmTimer = undefined;
+            this.onConfirmTimeout();
+        }, delayMs);
+    }
+
+    private clearConfirmTimer(): void {
+        if (this.confirmTimer) {
+            this.clearTimeout(this.confirmTimer);
+            this.confirmTimer = undefined;
+        }
+    }
+
+    /** No status confirmed the commands in time: request the status once, then report them as not confirmed. */
+    private onConfirmTimeout(): void {
+        if (!this.pendingConfirmations.length || this.unloading) {
+            return;
+        }
+        if (!this.confirmationQueryAsked) {
+            this.confirmationQueryAsked = true;
+            this.log.debug(
+                `[cmd] No status confirmed ${seqList(this.pendingConfirmations)} within ${formatDuration(STATUS_REPORT_TIMEOUT_MS)}, requesting the status`,
+            );
+            this.requestStatus("confirmation");
+            this.armConfirmTimer(STATUS_QUERY_TIMEOUT_MS);
+            return;
+        }
+        const now = Date.now();
+        const status = this.status ? describeStatus(this.status) : "none received";
+        for (const pending of this.pendingConfirmations) {
+            const text =
+                `[cmd] #${pending.seq} ${pending.source}: the gateway did not confirm ${pending.command.description} within ` +
+                `${formatDuration(now - pending.sentAt)} (last status: ${status}). The command may not have been executed.`;
+            if (this.confirmationProblemReported) {
+                this.log.debug(text);
+            } else {
+                this.log.warn(text);
+                this.confirmationProblemReported = true;
+            }
+        }
+        this.pendingConfirmations = [];
+        this.confirmationQueryAsked = false;
     }
 }
 

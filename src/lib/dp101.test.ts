@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { decodeDp101, dp101Checksum, encodeDp101Hex, formatHex } from "./dp101";
+import { buildDp101Frame, decodeDp101, dp101Checksum, encodeDp101Hex, formatHex } from "./dp101";
 
 // Frames published in tinytuya discussion #623, see appendix A of the protocol analysis in doc/
 const PUBLISHED_FRAMES = [
@@ -70,6 +70,18 @@ describe("dp101 => encodeDp101Hex", () => {
         expect(() => encodeDp101Hex("123")).to.throw(TypeError);
         expect(() => encodeDp101Hex("01 02 03")).to.throw(RangeError);
         expect(() => encodeDp101Hex("00".repeat(13))).to.throw(RangeError);
+    });
+});
+
+describe("dp101 => buildDp101Frame", () => {
+    it("appends the checksum to 11 payload bytes", () => {
+        const frame = buildDp101Frame([0x43, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80]);
+        expect(frame.base64).to.equal("QwAAgAAAAAAAgIDD");
+        expect(frame.checksumValid).to.equal(true);
+    });
+
+    it("rejects other payload lengths", () => {
+        expect(() => buildDp101Frame([0x43])).to.throw(RangeError);
     });
 });
 

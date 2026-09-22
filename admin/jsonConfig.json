@@ -20,7 +20,19 @@
         },
         "_guideLink": {
             "type": "staticLink",
-            "text": "Guide: how to get the device ID and local key (German, for Android, iPhone and iPad)",
+            "text": {
+                "en": "Guide: how to get the device ID and local key (German, for Android, iPhone and iPad)",
+                "de": "Anleitung: Geräte-ID und Local Key auslesen (für Android, iPhone und iPad)",
+                "ru": "Инструкция: как получить ID устройства и локальный ключ (на немецком, для Android, iPhone и iPad)",
+                "pt": "Guia: como obter o ID do dispositivo e a chave local (em alemão, para Android, iPhone e iPad)",
+                "nl": "Handleiding: apparaat-ID en lokale sleutel uitlezen (Duits, voor Android, iPhone en iPad)",
+                "fr": "Guide : obtenir l'ID de l'appareil et la clé locale (en allemand, pour Android, iPhone et iPad)",
+                "it": "Guida: come ottenere l'ID dispositivo e la chiave locale (in tedesco, per Android, iPhone e iPad)",
+                "es": "Guía: cómo obtener el ID del dispositivo y la clave local (en alemán, para Android, iPhone y iPad)",
+                "pl": "Instrukcja: jak odczytać ID urządzenia i klucz lokalny (po niemiecku, dla Androida, iPhone'a i iPada)",
+                "uk": "Інструкція: як отримати ID пристрою та локальний ключ (німецькою, для Android, iPhone та iPad)",
+                "zh-cn": "指南：如何获取设备 ID 和本地密钥（德语，适用于 Android、iPhone 和 iPad）"
+            },
             "href": "https://github.com/ssbingo/ioBroker.miboxer-wl433/blob/main/doc/Anleitung_Geraete-ID_und_Local-Key_auslesen.md",
             "target": "_blank",
             "button": true,
@@ -167,7 +179,69 @@
         },
         "_singleConnectionHint": {
             "type": "staticText",
-            "text": "Tuya devices accept only one local connection. Close the MiBoxer app on phones in the same network and do not control the gateway with other local integrations at the same time.",
+            "text": "Tuya devices usually accept only one local connection. If the connection keeps failing, close the MiBoxer app on phones in the same network and do not control the gateway with other local integrations at the same time.",
+            "newLine": true,
+            "style": {
+                "fontWeight": "bold"
+            },
+            "xs": 12,
+            "sm": 12,
+            "md": 12,
+            "lg": 12,
+            "xl": 12
+        },
+        "_headerZones": {
+            "type": "header",
+            "text": "Zones",
+            "size": 2,
+            "newLine": true
+        },
+        "zoneMode": {
+            "type": "select",
+            "label": "Zone control",
+            "help": "How the 8 zones of the gateway are offered in ioBroker",
+            "options": [
+                {
+                    "label": "Zone selector (light.zone)",
+                    "value": "selector"
+                },
+                {
+                    "label": "One channel per zone (zones.zone1 … zones.zone8)",
+                    "value": "channels"
+                }
+            ],
+            "newLine": true,
+            "xs": 12,
+            "sm": 12,
+            "md": 6,
+            "lg": 6,
+            "xl": 6
+        },
+        "_zoneModeSelectorText": {
+            "type": "staticText",
+            "text": "light.* shows the status reported by the gateway. The state light.zone selects the zone the commands of light.* are sent to (0 = all zones, 1–8 = one zone). Recommended, because every state shows what the gateway reports.",
+            "hidden": "data.zoneMode === 'channels'",
+            "newLine": true,
+            "xs": 12,
+            "sm": 12,
+            "md": 12,
+            "lg": 12,
+            "xl": 12
+        },
+        "_zoneModeChannelsText": {
+            "type": "staticText",
+            "text": "light.* shows the status reported by the gateway and sends its commands to all zones. In addition, the channels zones.zone1 … zones.zone8 control each zone separately. The gateway does not report a status per zone: a zone channel shows the last values sent to this zone and confirmed by the gateway.",
+            "hidden": "data.zoneMode !== 'channels'",
+            "newLine": true,
+            "xs": 12,
+            "sm": 12,
+            "md": 12,
+            "lg": 12,
+            "xl": 12
+        },
+        "_zoneModeHint": {
+            "type": "staticText",
+            "text": "The gateway reports only one status for all lamps: the last setting, whichever zone it was sent to. When this setting is changed, the states of the other variant are deleted.",
             "newLine": true,
             "style": {
                 "fontWeight": "bold"

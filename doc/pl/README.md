@@ -20,82 +20,133 @@ To **nieoficjalny projekt społeczności**. **Nie jest powiązany** z Shenzhen F
 
 ## Zasada działania
 
-W WL-433 znajduje się moduł Wi-Fi Tuya. W sieci lokalnej bramka jest **jednym** urządzeniem Tuya — wszystkie sparowane lampy są sterowane przez to urządzenie, a bramka przekazuje polecenia do lamp przez LoRa (433 MHz). Adapter komunikuje się bezpośrednio z bramką za pomocą **protokołu Tuya LAN 3.3** (port TCP 6668, szyfrowanie AES kluczem lokalnym), korzystając ze sprawdzonej biblioteki [tuyapi](https://github.com/codetheweb/tuyapi) (używanej również przez ioBroker.tuya). Obsługiwane są też wersje protokołu 3.1, 3.4 i 3.5, na wypadek gdyby aktualizacja oprogramowania je zmieniła.
+W WL-433 znajduje się moduł Wi-Fi Tuya. W sieci lokalnej bramka jest **jednym** urządzeniem Tuya — wszystkie powiązane lampy są sterowane przez to jedno urządzenie, a bramka przekazuje polecenia do lamp przez LoRa (433 MHz). Adapter komunikuje się z bramką bezpośrednio za pomocą **protokołu LAN Tuya 3.3** (port TCP 6668, szyfrowanie AES kluczem lokalnym), w oparciu o sprawdzoną bibliotekę [tuyapi](https://github.com/codetheweb/tuyapi) (używaną też przez ioBroker.tuya). Obsługiwane są również wersje protokołu 3.1, 3.4 i 3.5, na wypadek gdyby aktualizacja oprogramowania ją zmieniła.
+
+Lampy, strefy i sceny są sterowane własnymi poleceniami bramki w specyficznym dla producenta **punkcie danych 101** — tymi samymi poleceniami, które wysyła aplikacja MiBoxer. Bramka zgłasza swój stan w ten sam sposób; adapter dodatkowo odpytuje go przy łączeniu i przy każdym odświeżeniu stanu.
 
 ```text
 ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-Badania (analiza protokołu, źródła, plan testów) są dostępne w języku niemieckim: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Instrukcja parowania lamp z bramką: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+**Podręcznik** z każdym krokiem wyjaśnionym dla początkujących (instalacja, ustawienia, strefy, przykłady, rozwiązywanie problemów): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
+
+Badania źródłowe (analiza protokołu, źródła, plan testów, rozszyfrowany punkt danych 101), po niemiecku: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Poradnik łączenia lamp z bramką: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
 
 ## Obsługiwany sprzęt
 
 | Urządzenie | Rola | Status |
 | --- | --- | --- |
-| MiBoxer WL-433 | Wymagana, adapter łączy się z nią | Protokół Tuya 3.3 potwierdzony przez użytkownika z identycznym sprzętem |
-| MiBoxer PW01 (27 W RGB+CCT PAR56) | Lampa sparowana z bramką | Urządzenie docelowe |
-| MiBoxer PW02 (18 W RGB+CCT PAR56) | Lampa sparowana z bramką | Ta sama rodzina produktów, powinna działać |
-| MiBoxer UW01, UW02, UW03, RD-9L | Lampa sparowana z bramką | Nieprzetestowane |
+| MiBoxer WL-433 | Wymagana, adapter się z nią łączy | Przetestowano z prawdziwą bramką (protokół Tuya 3.3, punkt danych 101) |
+| MiBoxer PW01 (27 W RGB+CCT PAR56) | Lampa powiązana z bramką | Urządzenie docelowe |
+| MiBoxer PW02 (18 W RGB+CCT PAR56) | Lampa powiązana z bramką | Ta sama rodzina produktów, powinna działać |
+| MiBoxer UW01, UW02, UW03, RD-9L | Lampa powiązana z bramką | Nieprzetestowane |
 
 ## Wymagania
 
-1. Bramka jest skonfigurowana w aplikacji MiBoxer, a lampy są z nią sparowane.
-2. **ID urządzenia i klucz lokalny** bramki. Producent nie obsługuje platformy deweloperskiej Tuya dla WL-433, ale aplikacja MiBoxer zapisuje obie wartości w swoim dzienniku debugowania: na Androidzie odczytaj dziennik przeglądarką logcat, np. *LogFox*, podczas uruchamiania aplikacji i sterowania bramką. **Klucz lokalny zmienia się przy każdym ponownym parowaniu bramki** — wtedy trzeba go ponownie odczytać i wpisać.
-3. Bramka jest osiągalna z ioBroker (ta sama sieć). Zalecana jest rezerwacja DHCP; bez skonfigurowanego adresu IP adapter znajduje bramkę na podstawie jej rozgłoszeń UDP (porty 6666/6667).
-4. **Urządzenia Tuya akceptują tylko jedno połączenie lokalne.** Zamknij aplikację MiBoxer na telefonach w tej samej sieci i nie steruj bramką jednocześnie innymi integracjami lokalnymi (ioBroker.tuya, Home Assistant, tinytuya).
+1. Bramka jest skonfigurowana w aplikacji MiBoxer, a lampy są z nią powiązane.
+2. **ID urządzenia i klucz lokalny** bramki. Producent nie obsługuje platformy deweloperskiej Tuya dla WL-433, ale aplikacja MiBoxer zapisuje obie wartości w swoim dzienniku debugowania: na Androidzie odczytaj dziennik przeglądarką logcat, np. *LogFox*, podczas gdy aplikacja uruchamia się i steruje bramką. **Klucz lokalny zmienia się przy każdym ponownym parowaniu bramki** — wtedy trzeba go ponownie odczytać i wpisać. Poradnik krok po kroku dla początkujących (po niemiecku, dla Androida, iPhone'a i iPada): [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
+3. Bramka jest osiągalna z ioBroker (ta sama sieć). Zalecana jest rezerwacja DHCP; bez skonfigurowanego adresu IP adapter znajduje bramkę dzięki jej rozgłoszeniom UDP (porty 6666/6667).
+4. **Urządzenia Tuya zazwyczaj akceptują tylko jedno połączenie lokalne.** W teście aplikacja MiBoxer i adapter były połączone jednocześnie; jeśli jednak połączenie wciąż się nie udaje, zamknij aplikację na telefonach w tej samej sieci i nie steruj bramką jednocześnie innymi integracjami lokalnymi (ioBroker.tuya, Home Assistant, tinytuya).
 
 ## Konfiguracja
 
 | Ustawienie | Opis |
 | --- | --- |
-| ID urządzenia | ID Tuya bramki WL-433 |
-| Klucz lokalny | 16-znakowy klucz lokalny Tuya (przechowywany w postaci zaszyfrowanej) |
+| ID urządzenia | ID urządzenia Tuya bramki WL-433 |
+| Klucz lokalny | 16-znakowy klucz lokalny Tuya (przechowywany zaszyfrowany) |
 | Adres IP bramki | Pozostaw puste, aby automatycznie znaleźć bramkę w sieci lokalnej |
 | Wersja protokołu Tuya | 3.3 dla WL-433 (do wyboru 3.1, 3.4 i 3.5) |
-| Szukaj bramki w sieci lokalnej | Przycisk: znajduje bramkę po ID urządzenia i wpisuje adres IP oraz wersję protokołu. Bez ID wyświetla wszystkie znalezione urządzenia Tuya |
-| Opóźnienie ponownego połączenia | Liczba sekund do ponownej próby połączenia (domyślnie 30) |
-| Interwał odświeżania stanu | Liczba sekund między pełnymi zapytaniami o stan (domyślnie 60, 0 = tylko aktualizacje wysyłane przez bramkę) |
+| Szukaj bramki w sieci lokalnej | Przycisk: znajduje bramkę po ID urządzenia i wpisuje adres IP oraz wersję protokołu. Bez ID urządzenia wyświetlane są wszystkie znalezione urządzenia Tuya |
+| Czas do ponownego połączenia | Sekundy do ponownej próby utraconego lub nieudanego połączenia (domyślnie 30) |
+| Interwał odświeżania stanu | Sekundy między pełnymi zapytaniami o stan (domyślnie 60, 0 = tylko aktualizacje wysyłane przez bramkę) |
+| Sterowanie strefami | *Wybór strefy* (domyślnie) lub *jeden kanał na strefę*, zob. [Strefy](#strefy) |
+
+## Strefy
+
+Bramka steruje maksymalnie 8 strefami (jak pilot FUT086). Każde polecenie może trafić do jednej strefy lub do wszystkich, ale bramka zgłasza **tylko jeden stan dla wszystkich lamp: ostatnie ustawienie, niezależnie od tego, do której strefy zostało wysłane**. Również aplikacja MiBoxer nie pokazuje osobnego stanu dla każdej strefy. Ustawienie *Sterowanie strefami* oferuje dwa warianty:
+
+| Wariant | Stany | Odpowiedni dla |
+| --- | --- | --- |
+| **Wybór strefy (domyślnie)** | `light.*` pokazuje stan bramki. `light.zone` (0 = wszystkie strefy, 1–8) wybiera strefę, do której trafiają polecenia `light.*`. | Większość użytkowników: każdy stan pokazuje to, co zgłasza bramka |
+| **Jeden kanał na strefę** | `light.*` pokazuje stan bramki i wysyła do wszystkich stref. Dodatkowo `zones.zone1` … `zones.zone8` sterują każdą strefą osobno. Kanał strefy pokazuje ostatnie wartości wysłane do tej strefy i potwierdzone przez bramkę; pozostaje pusty, dopóki nic nie zostanie wysłane do strefy. | Skrypty i wizualizacje, które adresują strefy bezpośrednio |
+
+Po zmianie ustawienia stany drugiego wariantu są usuwane.
 
 ## Stany
 
-| State | Tuya DP | Opis |
+| State | Opis |
+| --- | --- |
+| `info.connection` | Połączenie z bramką |
+| `info.ip` | Adres IP używany dla bramki |
+| `light.on` | Wł. / wył. |
+| `light.mode` | `white`, `colour` lub `scene` — zapis zmienia tryb (tryb koloru z ostatnim odcieniem, tryb sceny z ostatnią sceną) |
+| `light.brightness` | Jasność 1–100 % bieżącego trybu. 0 wyłącza, wartość powyżej 0 włącza |
+| `light.colorTemperature` | Temperatura barwowa 2700–6500 K w krokach co 100 K (przełącza na tryb biały) |
+| `light.color` | Kolor jako `#rrggbb` przy pełnej jasności (przełącza na tryb koloru). Zapis ustawia odcień i nasycenie, jasność wartości RGB jest ignorowana — użyj `light.brightness` |
+| `light.hue` | Odcień 0–360° (przełącza na tryb koloru) |
+| `light.saturation` | Nasycenie 0–100 % (przełącza na tryb koloru) |
+| `light.scene` | Scena 1–9 (M1–M9 w aplikacji), 0 = brak sceny. Zapis 1–9 uruchamia scenę |
+| `light.speedUp` / `light.speedDown` | Przyciski S+ / S- aplikacji: scena szybciej / wolniej. Bramka nie zgłasza prędkości |
+| `light.countdown` | Sekundy do przełączenia lamp przez bramkę (0 = wył., standardowy punkt danych 26) |
+| `light.zone` | Tylko przy wyborze strefy: strefa poleceń `light.*`, 0 = wszystkie strefy, 1–8 |
+| `zones.zone<n>.*` | Tylko przy jednym kanale na strefę: `on`, `mode`, `brightness`, `colorTemperature`, `color`, `hue`, `saturation`, `scene`, `speedUp`, `speedDown` dla strefy n |
+| `dp101.raw` | Ostatnia ramka punktu danych 101 jako Base64 — zapis wysyła wartość bez zmian |
+| `dp101.hex` | Ostatnia ramka punktu danych 101 jako bajty szesnastkowe — zapis wysyła ramkę, suma kontrolna jest dodawana lub poprawiana automatycznie |
+| `dp101.checksumValid` | Suma kontrolna ostatniej ramki jest poprawna |
+| `dp101.history` | Lista JSON ostatnich 50 ramek (`rx` = odebrana, `tx` = wysłana) ze znacznikiem czasu; powtarzające się identyczne odpowiedzi stanu nie są dodawane |
+| `raw.dp<n>` | Każdy kolejny punkt danych zgłoszony przez bramkę jest tworzony automatycznie (z możliwością zapisu) |
+
+Wartości wymagające określonego trybu lub włączonych lamp adapter wysyła tak jak aplikacja MiBoxer: np. temperatura barwowa w trybie koloru najpierw przełącza na tryb biały, a jasność przy wyłączonych lampach najpierw je włącza. Szybkie zmiany (np. z suwaka) są łączone, wysyłana jest tylko ostatnia wartość. Polecenia są przyjmowane tylko wtedy, gdy bramka jest połączona. Polecenie uznaje się za wykonane, gdy następny stan bramki pokazuje jego wartości (około 2,5 s później); do tego czasu stan nie jest potwierdzony.
+
+## Punkt danych 101 — protokół
+
+WL-433 przesyła lampy, strefy i sceny w specyficznym dla producenta punkcie danych 101: 12-bajtowe ramki zakodowane w Base64, ostatni bajt to 8-bitowa suma bajtów 0–10. Format został rozszyfrowany 22.09.2026 na podstawie ramek stanu prawdziwej bramki i poleceń, które aplikacja MiBoxer zapisuje w swoim dzienniku Androida:
+
+| Ramka | Bytes (hex) | Znaczenie |
 | --- | --- | --- |
-| `info.connection` | – | Połączenie z bramką |
-| `info.ip` | – | Używany adres IP bramki |
-| `light.on` | 20 | Włączanie/wyłączanie wszystkich lamp |
-| `light.mode` | 21 | `white`, `colour`, `scene`, `music` |
-| `light.brightness` | 22 / 24 | Jasność 0–100 %. W trybie koloru zmieniana jest jasność koloru (DP 24), w przeciwnym razie jasność bieli (DP 22). 0 wyłącza, wartość powyżej 0 włącza |
-| `light.colorTemperature` | 23 | Temperatura barwowa 2700–6500 K (przełącza w tryb biały) |
-| `light.color` | 24 | Kolor jako `#rrggbb` (przełącza w tryb koloru) |
-| `light.countdown` | 26 | Liczba sekund do przełączenia lamp przez bramkę (0 = wył.) |
-| `dp101.raw` | 101 | Ostatnia ramka DP 101 w Base64 — zapis wysyła wartość bez zmian |
-| `dp101.hex` | 101 | Ostatnia ramka DP 101 jako bajty hex — zapis wysyła ramkę, suma kontrolna jest dodawana lub poprawiana automatycznie |
-| `dp101.checksumValid` | 101 | Suma kontrolna ostatniej ramki jest poprawna |
-| `dp101.history` | 101 | Lista JSON ostatnich 50 ramek (`rx` = odebrana, `tx` = wysłana) ze znacznikiem czasu |
-| `raw.dp<n>` | n | Każdy kolejny punkt danych zgłoszony przez bramkę jest tworzony automatycznie (zapisywalny) |
+| Polecenie (aplikacja / adapter → bramka) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` polecenie: `01` odcień 0–255 (wartość w bajtach 5–8, przełącza na tryb koloru), `02` jasność 1–100 %, `03` temperatura barwowa 0–38 (2700 K + 100 K na krok), `04` nasycenie 0–100 %, `05` scena 1–9, `06` klawisz (`01` wł., `02` wył., `03` S-, `04` S+, `06` tryb biały); `zz` strefa: `00` wszystkie, `01`–`08` |
+| Zapytanie o stan | `43 00 00 80 00 00 00 00 00 80 80 C3` | bramka odpowiada ramką stanu `44` |
+| Stan (bramka → aplikacja) | `42` / `44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` zgłoszenie zmiany (około 2,5 s po ostatniej zmianie), `44` odpowiedź na zapytanie; `mm` tryb: `00` wył., `01` kolor, `02` biały, `03`–`0B` scena 1–9; `hh` odcień, `tt` krok temperatury barwowej, `bb` jasność, `ss` nasycenie (0 w trybie białym). Strefa nie jest częścią stanu |
 
-Szybkie zmiany (np. z suwaka) są łączone w jedno polecenie. Polecenia są przyjmowane tylko wtedy, gdy bramka jest połączona.
+Standardowe punkty danych 20–23 bramka wyprowadza z tych poleceń; adapter używa tylko punktu danych 20 (wł./wył., przychodzi wcześniej niż stan), a we wszystkim innym podąża za stanem z punktu danych 101. Zapis punktu danych koloru Tuya 24 nie zmienia koloru lamp — aplikacja MiBoxer również go nie używa.
 
-## Punkt danych 101 — strefy i sceny
-
-WL-433 przesyła polecenia stref i scen w specyficznym dla producenta punkcie danych 101: 12-bajtowe ramki binarne zakodowane w Base64, ostatni bajt to 8-bitowa suma bajtów 0–10. Znaczenie pozostałych bajtów **nie zostało jeszcze odkodowane**. Do tego czasu adapter zapewnia bezpośredni dostęp:
-
-- odebrane ramki pojawiają się w `dp101.raw` / `dp101.hex` i są zapisywane w `dp101.history`,
-- ramki można wysyłać przez `dp101.hex` — wystarczy 11 bajtów, suma kontrolna jest dodawana automatycznie, np. `43 00 00 80 00 00 00 00 00 80 80`
-
-**Potrzebna pomoc:** wykonuj w aplikacji MiBoxer po jednej czynności (dla każdej strefy: wł., wył., kolor, scena 1–9) i zapisuj ramki z `dp101.history`. Przy wystarczającej liczbie nagrań ramki będzie można odkodować i dodać osobne stany dla stref i scen. Procedurę opisuje rozdział 6 analizy protokołu.
+Surowy dostęp do własnych eksperymentów: `dp101.hex` przyjmuje 11 bajtów (suma kontrolna jest dodawana), np. `43 00 00 80 00 00 00 00 00 80 80` pyta o stan.
 
 ## Ograniczenia
 
-- Standardowe punkty danych 20–26 działają na wszystkie lampy bramki (być może tylko na strefę wybraną w aplikacji). Osobne strefy i sceny pojawią się po odkodowaniu punktu danych 101.
-- Bramka nadal zgłasza swój stan do chmury Tuya. Całkowite zablokowanie dostępu do internetu może sprawić, że będzie działać niestabilnie.
-- Ta pierwsza wersja została przetestowana z symulacją bramki (protokół Tuya 3.3). Opinie z prawdziwym sprzętem są bardzo mile widziane.
+- Bramka zgłasza jeden stan dla wszystkich lamp (ostatnie ustawienie), a nie stan każdej strefy — zob. [Strefy](#strefy).
+- Bramka nie zgłasza prędkości sceny (S+ / S-).
+- Nie widać, czy lampa rzeczywiście odebrała polecenie drogą radiową: stan pochodzi z bramki.
+- Bramka nadal zgłasza swój stan do chmury Tuya. Całkowite zablokowanie jej dostępu do internetu może sprawić, że będzie działać zawodnie.
+
+## Logowanie i rozwiązywanie problemów
+
+Adapter loguje według stałego schematu, aby dziennik był w każdej chwili przydatny do szukania błędów:
+
+| Poziom | Co jest logowane |
+| --- | --- |
+| error | Błędy konfiguracji, przez które adapter nie może działać (brak ID urządzenia, klucz lokalny nie ma 16 znaków) |
+| warn | Problemy wymagające Twojego działania — zgłaszane raz, a potem tylko na poziomie debug, dopóki nie zostaną rozwiązane: bramka odrzuca połączenia, dane niemożliwe do odszyfrowania (zły klucz lokalny), polecenia niepotwierdzone przez bramkę, zapytania o stan bez odpowiedzi, nieoczekiwane wartości punktów danych lub ramki stanu |
+| info | Kamienie milowe: podsumowanie konfiguracji przy starcie, bramka znaleziona, połączona, połączenie utracone, połączenie znów stabilne, stany drugiego wariantu stref usunięte |
+| debug | Każdy krok z danymi wejściowymi, decyzjami i czasami: zmiana stanu → przełożenie na ramki punktu danych 101 (z powodem dodatkowych ramek, np. „najpierw włącz”) → kolejka → wysłanie → potwierdzenie przez stan (lub której wartości jeszcze brakuje), każdy odebrany punkt danych i stan oraz zaktualizowane stany, zapytania o stan, wyszukiwanie. Polecenia (`#12`) i próby połączenia (`Attempt #3`) są numerowane |
+| silly | Dodatkowo ślad protokołu biblioteki tuyapi (pakiety, ping/pong) z etykietą `[tuyapi]` |
+
+Każdy komunikat zaczyna się od etykiety: `[cfg]` konfiguracja, `[conn]` połączenie, `[rx]` bramka → stany, `[cmd]` stany → polecenia, `[queue]` kolejka poleceń, `[poll]` odświeżanie i zapytanie o stan, `[disc]` wyszukiwanie, `[dp101]` surowe ramki, `[unload]` zamykanie, `[tuyapi]` ślad biblioteki. Klucz lokalny i klucze sesji nigdy nie pojawiają się w dzienniku — podsumowanie konfiguracji pokazuje tylko długość klucza.
+
+Zmiana poziomu: Admin → **Instancje** → tryb eksperta → poziom logowania `miboxer-wl433.0` → `debug` (lub `silly` dla śladu protokołu; następnie uruchom instancję ponownie). Przy zgłaszaniu problemu dołącz dziennik debug i zawartość `dp101.history`.
 
 ## Changelog
 <!--
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.1.0 (2026-09-22)
+
+- (ssbingo) Rozszyfrowano punkt danych 101: lampy, strefy i sceny są teraz sterowane własnymi poleceniami bramki (wcześniej nie dało się ustawić koloru), stan jest odczytywany z punktu danych 101 i aktywnie odpytywany
+- (ssbingo) Nowe stany: odcień, nasycenie, scena M1–M9, przyciski S+ / S-; strefy do wyboru w ustawieniach jako wybór strefy (`light.zone`) lub jeden kanał na strefę
+- (ssbingo) Polecenia są potwierdzane przez stan bramki, a gdy bramka ich nie potwierdzi, logowane jest ostrzeżenie; szczegółowe wyjście debug dla każdego kroku
+- (ssbingo) Podręcznik użytkownika po niemiecku i angielsku dla początkujących
 
 ### 0.0.1 (2026-09-21)
 

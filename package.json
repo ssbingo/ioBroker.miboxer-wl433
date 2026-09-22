@@ -1,6 +1,6 @@
 {
   "name": "iobroker.miboxer-wl433",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Local control of MiBoxer PW01/PW02 LoRa pool lights via the WL-433 gateway (Tuya local protocol, no cloud)",
   "author": {
     "name": "ssbingo",

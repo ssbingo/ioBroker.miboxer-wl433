@@ -1,0 +1,403 @@
+/* Print design of the manuals (doc/Handbuch_*.md, doc/Manual_*.md), rendered by doc/tools/build-pdf.py */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap");
+
+:root {
+    --primary: #1b5796;
+    --primary-dark: #123b66;
+    --accent: #0fa3b1;
+    --text: #1f2933;
+    --muted: #5b6875;
+    --line: #d9e2ec;
+    --zebra: #f4f7fb;
+}
+
+@page {
+    size: A4;
+    margin: 18mm 17mm 20mm 17mm;
+}
+
+html {
+    font-size: 10pt;
+}
+
+body {
+    font-family: "Inter", "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* ---------------------------------------------------------------- cover */
+
+.cover {
+    height: 250mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+    break-after: page;
+    position: relative;
+}
+
+.cover::before {
+    content: "";
+    position: absolute;
+    top: -18mm;
+    left: -17mm;
+    right: -17mm;
+    height: 92mm;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 55%, var(--accent) 100%);
+    z-index: -1;
+}
+
+.cover .kicker {
+    position: absolute;
+    top: 12mm;
+    left: 0;
+    margin: 0;
+    color: #fff;
+    font-size: 10pt;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.cover .kicker span {
+    display: inline-block;
+    margin-top: 3mm;
+    font-size: 16pt;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.cover .logo {
+    width: 30mm;
+    height: 30mm;
+    border-radius: 7mm;
+    background: #fff;
+    padding: 3mm;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    position: absolute;
+    top: 38mm;
+    right: 0;
+}
+
+.cover h1 {
+    margin: 70mm 0 6mm 0;
+    font-size: 27pt;
+    line-height: 1.15;
+    font-weight: 800;
+    color: var(--primary-dark);
+    border: none;
+}
+
+.cover h1 + p {
+    font-size: 14pt;
+    color: var(--muted);
+    margin: 0 0 14mm 0;
+}
+
+.cover h1 + p em {
+    font-style: normal;
+}
+
+.cover table {
+    width: auto;
+    min-width: 60%;
+    box-shadow: none;
+    border: none;
+}
+
+.cover table thead {
+    display: none;
+}
+
+.cover table td {
+    border: none;
+    border-bottom: 1px solid var(--line);
+    background: transparent !important;
+    padding: 2.2mm 6mm 2.2mm 0;
+    font-size: 10.5pt;
+}
+
+.cover table td:first-child {
+    color: var(--muted);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- table of contents */
+
+.toc {
+    page-break-after: always;
+    break-after: page;
+}
+
+.toc ol {
+    list-style: none;
+    padding: 0;
+    counter-reset: toc;
+    font-size: 11pt;
+}
+
+.toc li {
+    counter-increment: toc;
+    padding: 2.4mm 0 2.4mm 12mm;
+    border-bottom: 1px dotted var(--line);
+    position: relative;
+}
+
+.toc li::before {
+    content: counter(toc);
+    position: absolute;
+    left: 0;
+    top: 2mm;
+    width: 7.5mm;
+    height: 7.5mm;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+    font-size: 9pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toc a {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- headings and text */
+
+h1,
+h2,
+h3,
+h4 {
+    color: var(--primary-dark);
+    line-height: 1.25;
+    break-after: avoid;
+    page-break-after: avoid;
+}
+
+h2 {
+    font-size: 17pt;
+    font-weight: 800;
+    margin: 12mm 0 5mm 0;
+    padding: 3mm 0 3mm 5mm;
+    border-left: 2.2mm solid var(--accent);
+    background: linear-gradient(90deg, #e8f1fa 0%, rgba(232, 241, 250, 0) 85%);
+    border-radius: 0 2mm 2mm 0;
+}
+
+h2.chapter {
+    break-before: page;
+    page-break-before: always;
+    margin-top: 0;
+}
+
+h3 {
+    font-size: 12.5pt;
+    font-weight: 700;
+    margin: 8mm 0 3mm 0;
+    color: var(--primary);
+}
+
+p,
+li {
+    orphans: 3;
+    widows: 3;
+}
+
+a {
+    color: var(--primary);
+}
+
+strong {
+    font-weight: 700;
+}
+
+ol,
+ul {
+    padding-left: 6mm;
+}
+
+li {
+    margin: 1.2mm 0;
+}
+
+li::marker {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* task lists (checklist) */
+li input[type="checkbox"] {
+    width: 3.6mm;
+    height: 3.6mm;
+    margin-right: 2mm;
+    vertical-align: -0.6mm;
+}
+
+code {
+    font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+    font-size: 8.8pt;
+    background: #eef3f8;
+    color: #0b3b6e;
+    padding: 0.3mm 1.2mm;
+    border-radius: 1mm;
+}
+
+pre {
+    background: #0f1f33;
+    color: #e6edf5;
+    border-radius: 2.5mm;
+    padding: 4mm 5mm;
+    font-size: 8.6pt;
+    line-height: 1.5;
+    overflow: hidden;
+    white-space: pre-wrap;
+    break-inside: avoid;
+    border-left: 1.5mm solid var(--accent);
+}
+
+pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+
+/* ---------------------------------------------------------------- tables */
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 4mm 0 5mm 0;
+    font-size: 9pt;
+    break-inside: auto;
+    border: 1px solid var(--line);
+    border-radius: 2mm;
+    overflow: hidden;
+}
+
+tr {
+    break-inside: avoid;
+}
+
+th {
+    background: var(--primary);
+    color: #fff;
+    text-align: left;
+    font-weight: 600;
+    padding: 2.2mm 3mm;
+}
+
+td {
+    padding: 2mm 3mm;
+    border-top: 1px solid var(--line);
+    vertical-align: top;
+}
+
+tbody tr:nth-child(even) td {
+    background: var(--zebra);
+}
+
+/* ---------------------------------------------------------------- figures */
+
+figure {
+    margin: 5mm 0 6mm 0;
+    break-inside: avoid;
+    text-align: center;
+}
+
+figure img {
+    max-width: 100%;
+    max-height: 125mm;
+    border: 1px solid var(--line);
+    border-radius: 2mm;
+    box-shadow: 0 3px 12px rgba(18, 59, 102, 0.18);
+}
+
+figcaption {
+    margin-top: 2.5mm;
+    font-size: 8.8pt;
+    color: var(--muted);
+}
+
+figcaption::before {
+    content: "▲ ";
+    color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- callouts (GitHub alerts) */
+
+.callout {
+    margin: 4.5mm 0;
+    padding: 3.5mm 4.5mm 1.5mm 4.5mm;
+    border-radius: 2.5mm;
+    border-left: 1.8mm solid;
+    break-inside: avoid;
+}
+
+.callout > p:first-child {
+    margin-top: 0;
+    font-weight: 800;
+    font-size: 9.5pt;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.callout table {
+    background: #fff;
+}
+
+.callout.tip {
+    background: #eaf7ee;
+    border-color: #1a7f37;
+}
+
+.callout.tip > p:first-child {
+    color: #1a7f37;
+}
+
+.callout.note {
+    background: #e7f1fd;
+    border-color: #0969da;
+}
+
+.callout.note > p:first-child {
+    color: #0969da;
+}
+
+.callout.important {
+    background: #f3eefe;
+    border-color: #8250df;
+}
+
+.callout.important > p:first-child {
+    color: #8250df;
+}
+
+.callout.warning {
+    background: #fff6db;
+    border-color: #bf8700;
+}
+
+.callout.warning > p:first-child {
+    color: #9a6700;
+}
+
+.callout.caution {
+    background: #ffebe9;
+    border-color: #cf222e;
+}
+
+.callout.caution > p:first-child {
+    color: #cf222e;
+}

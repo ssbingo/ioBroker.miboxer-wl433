@@ -22,5 +22,13 @@
     "Seconds until a lost or failed connection is retried": "连接断开或失败后重新尝试前等待的秒数",
     "Status refresh interval": "状态刷新间隔",
     "Seconds between full status requests, 0 = only use the updates pushed by the gateway": "两次完整状态查询之间的秒数，0 = 仅使用网关推送的更新",
-    "Tuya devices accept only one local connection. Close the MiBoxer app on phones in the same network and do not control the gateway with other local integrations at the same time.": "涂鸦设备只接受一个本地连接。请关闭同一网络中手机上的 MiBoxer 应用，并且不要同时使用其他本地集成控制网关。"
+    "Zones": "区域",
+    "Zone control": "区域控制",
+    "How the 8 zones of the gateway are offered in ioBroker": "网关的 8 个区域在 ioBroker 中的提供方式",
+    "Zone selector (light.zone)": "区域选择（light.zone）",
+    "One channel per zone (zones.zone1 … zones.zone8)": "每个区域一个通道（zones.zone1 … zones.zone8）",
+    "light.* shows the status reported by the gateway. The state light.zone selects the zone the commands of light.* are sent to (0 = all zones, 1–8 = one zone). Recommended, because every state shows what the gateway reports.": "light.* 显示网关报告的状态。状态 light.zone 选择 light.* 的命令发送到哪个区域（0 = 所有区域，1–8 = 单个区域）。推荐使用，因为每个状态都显示网关报告的内容。",
+    "light.* shows the status reported by the gateway and sends its commands to all zones. In addition, the channels zones.zone1 … zones.zone8 control each zone separately. The gateway does not report a status per zone: a zone channel shows the last values sent to this zone and confirmed by the gateway.": "light.* 显示网关报告的状态，并将其命令发送到所有区域。此外，通道 zones.zone1 … zones.zone8 可分别控制每个区域。网关不会按区域报告状态：区域通道显示最后发送到该区域并经网关确认的值。",
+    "The gateway reports only one status for all lamps: the last setting, whichever zone it was sent to. When this setting is changed, the states of the other variant are deleted.": "网关只为所有灯报告一个状态：最后一次设置，无论它发送到哪个区域。更改此设置后，另一种方式的状态将被删除。",
+    "Tuya devices usually accept only one local connection. If the connection keeps failing, close the MiBoxer app on phones in the same network and do not control the gateway with other local integrations at the same time.": "涂鸦设备通常只接受一个本地连接。如果连接反复失败，请关闭同一网络中手机上的 MiBoxer 应用，并且不要同时用其他本地集成控制网关。"
 }

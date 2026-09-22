@@ -20,19 +20,23 @@ Il s'agit d'un **projet communautaire non officiel**. Il **n'est ni affilié, ni
 
 ## Fonctionnement
 
-Le WL-433 contient un module Wi-Fi Tuya. Sur le réseau local, la passerelle est **un seul** appareil Tuya — toutes les lampes associées sont pilotées via cet appareil, la passerelle transmet les commandes aux lampes par LoRa (433 MHz). L'adaptateur communique directement avec la passerelle via le **protocole LAN Tuya 3.3** (port TCP 6668, chiffré en AES avec la clé locale), en s'appuyant sur la bibliothèque éprouvée [tuyapi](https://github.com/codetheweb/tuyapi) (également utilisée par ioBroker.tuya). Les versions de protocole 3.1, 3.4 et 3.5 sont aussi prises en charge, au cas où une mise à jour du firmware les modifierait.
+Le WL-433 contient un module Wi-Fi Tuya. Sur le réseau local, la passerelle est **un seul** appareil Tuya : toutes les lampes associées sont pilotées par cet appareil, la passerelle transmet les commandes par LoRa (433 MHz) aux lampes. L'adaptateur parle directement le **protocole LAN Tuya 3.3** (port TCP 6668, chiffrement AES avec la clé locale) avec la passerelle, sur la base de la bibliothèque éprouvée [tuyapi](https://github.com/codetheweb/tuyapi) (également utilisée par ioBroker.tuya). Les versions de protocole 3.1, 3.4 et 3.5 sont aussi prises en charge, au cas où une mise à jour du firmware la changerait.
+
+Les lampes, les zones et les scènes sont pilotées avec les commandes propres à la passerelle dans le **point de données 101** spécifique au fabricant — les mêmes commandes que celles de l'application MiBoxer. La passerelle signale son état de la même manière ; l'adaptateur le demande en outre à la connexion et à chaque actualisation de l'état.
 
 ```text
 ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-La recherche de fond (analyse du protocole, sources, plan de test) est disponible en allemand : [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guide pour associer les lampes à la passerelle : [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+**Manuel** expliquant chaque étape pour les débutants (installation, paramètres, zones, exemples, dépannage) : [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
+
+Recherche de fond (analyse du protocole, sources, plan de test, point de données 101 décodé), en allemand : [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guide pour associer les lampes à la passerelle : [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
 
 ## Matériel pris en charge
 
 | Appareil | Rôle | Statut |
 | --- | --- | --- |
-| MiBoxer WL-433 | Obligatoire, l'adaptateur s'y connecte | Protocole Tuya 3.3 confirmé par un utilisateur disposant du même matériel |
+| MiBoxer WL-433 | Obligatoire, l'adaptateur s'y connecte | Testé avec une vraie passerelle (protocole Tuya 3.3, point de données 101) |
 | MiBoxer PW01 (27 W RGB+CCT PAR56) | Lampe associée à la passerelle | Appareil cible |
 | MiBoxer PW02 (18 W RGB+CCT PAR56) | Lampe associée à la passerelle | Même famille de produits, devrait fonctionner |
 | MiBoxer UW01, UW02, UW03, RD-9L | Lampe associée à la passerelle | Non testé |
@@ -40,62 +44,109 @@ La recherche de fond (analyse du protocole, sources, plan de test) est disponibl
 ## Prérequis
 
 1. La passerelle est configurée dans l'application MiBoxer et les lampes y sont associées.
-2. **ID de l'appareil et clé locale** de la passerelle. Le fabricant ne prend pas en charge la plateforme développeur Tuya pour le WL-433, mais l'application MiBoxer écrit les deux valeurs dans son journal de débogage : sous Android, lisez le journal avec une visionneuse logcat comme *LogFox* pendant que l'application démarre et pilote la passerelle. **La clé locale change à chaque nouvel appairage de la passerelle** — elle doit alors être relue et saisie à nouveau.
+2. **ID d'appareil et clé locale** de la passerelle. Le fabricant ne prend pas en charge la plateforme développeur Tuya pour le WL-433, mais l'application MiBoxer écrit les deux valeurs dans son journal de débogage : sous Android, lisez le journal avec un lecteur logcat comme *LogFox* pendant que l'application démarre et pilote la passerelle. **La clé locale change à chaque nouvel appairage de la passerelle** — elle doit alors être relue et saisie à nouveau. Guide pas à pas pour débutants (en allemand, pour Android, iPhone et iPad) : [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
 3. La passerelle est joignable depuis ioBroker (même réseau). Une réservation DHCP est recommandée ; sans adresse IP configurée, l'adaptateur trouve la passerelle grâce à ses diffusions UDP (ports 6666/6667).
-4. **Les appareils Tuya n'acceptent qu'une seule connexion locale.** Fermez l'application MiBoxer sur les téléphones du même réseau et ne pilotez pas la passerelle en même temps avec d'autres intégrations locales (ioBroker.tuya, Home Assistant, tinytuya).
+4. **Les appareils Tuya n'acceptent généralement qu'une seule connexion locale.** Lors d'un test, l'application MiBoxer et l'adaptateur étaient connectés en même temps ; mais si la connexion échoue sans cesse, fermez l'application sur les téléphones du même réseau et ne pilotez pas la passerelle en même temps avec d'autres intégrations locales (ioBroker.tuya, Home Assistant, tinytuya).
 
 ## Configuration
 
 | Paramètre | Description |
 | --- | --- |
-| ID de l'appareil | ID Tuya de la passerelle WL-433 |
+| ID d'appareil | ID d'appareil Tuya de la passerelle WL-433 |
 | Clé locale | Clé locale Tuya de 16 caractères (stockée chiffrée) |
 | Adresse IP de la passerelle | Laisser vide pour trouver la passerelle automatiquement sur le réseau local |
 | Version du protocole Tuya | 3.3 pour le WL-433 (3.1, 3.4 et 3.5 sélectionnables) |
-| Rechercher la passerelle sur le réseau local | Bouton : trouve la passerelle grâce à son ID et renseigne l'adresse IP et la version du protocole. Sans ID, tous les appareils Tuya trouvés sont listés |
+| Rechercher la passerelle sur le réseau local | Bouton : trouve la passerelle par son ID d'appareil et renseigne l'adresse IP et la version du protocole. Sans ID d'appareil, tous les appareils Tuya trouvés sont listés |
 | Délai de reconnexion | Secondes avant une nouvelle tentative de connexion (30 par défaut) |
-| Intervalle d'actualisation de l'état | Secondes entre deux requêtes d'état complètes (60 par défaut, 0 = uniquement les mises à jour envoyées par la passerelle) |
+| Intervalle d'actualisation de l'état | Secondes entre deux demandes d'état complètes (60 par défaut, 0 = uniquement les mises à jour envoyées par la passerelle) |
+| Commande des zones | *Sélecteur de zone* (par défaut) ou *un canal par zone*, voir [Zones](#zones) |
+
+## Zones
+
+La passerelle pilote jusqu'à 8 zones (comme la télécommande FUT086). Chaque commande peut aller à une zone ou à toutes les zones, mais la passerelle ne signale **qu'un seul état pour toutes les lampes : le dernier réglage, quelle que soit la zone à laquelle il a été envoyé**. L'application MiBoxer n'affiche pas non plus d'état séparé par zone. Le paramètre *Commande des zones* propose deux variantes :
+
+| Variante | États | Adapté à |
+| --- | --- | --- |
+| **Sélecteur de zone (par défaut)** | `light.*` affiche l'état de la passerelle. `light.zone` (0 = toutes les zones, 1–8) choisit la zone à laquelle les commandes de `light.*` sont envoyées. | La plupart des utilisateurs : chaque état affiche ce que la passerelle signale |
+| **Un canal par zone** | `light.*` affiche l'état de la passerelle et envoie à toutes les zones. En outre, `zones.zone1` … `zones.zone8` commandent chaque zone séparément. Un canal de zone affiche les dernières valeurs envoyées à cette zone et confirmées par la passerelle ; il reste vide tant que rien n'a été envoyé à la zone. | Scripts et visualisations qui adressent directement les zones |
+
+Si le paramètre est modifié, les états de l'autre variante sont supprimés.
 
 ## États
 
-| State | Tuya DP | Description |
+| State | Description |
+| --- | --- |
+| `info.connection` | Connexion à la passerelle |
+| `info.ip` | Adresse IP utilisée pour la passerelle |
+| `light.on` | Marche / arrêt |
+| `light.mode` | `white`, `colour` ou `scene` — l'écriture change de mode (mode couleur avec la dernière teinte, mode scène avec la dernière scène) |
+| `light.brightness` | Luminosité 1–100 % du mode actuel. 0 éteint, une valeur supérieure à 0 allume |
+| `light.colorTemperature` | Température de couleur 2700–6500 K par pas de 100 K (passe en mode blanc) |
+| `light.color` | Couleur au format `#rrggbb` à pleine luminosité (passe en mode couleur). L'écriture règle la teinte et la saturation, la luminosité de la valeur RVB est ignorée — utilisez `light.brightness` |
+| `light.hue` | Teinte 0–360° (passe en mode couleur) |
+| `light.saturation` | Saturation 0–100 % (passe en mode couleur) |
+| `light.scene` | Scène 1–9 (M1–M9 dans l'application), 0 = aucune scène. Écrire 1–9 lance la scène |
+| `light.speedUp` / `light.speedDown` | Boutons S+ / S- de l'application : scène plus rapide / plus lente. La passerelle ne signale pas la vitesse |
+| `light.countdown` | Secondes avant que la passerelle bascule les lampes (0 = désactivé, point de données standard 26) |
+| `light.zone` | Uniquement avec le sélecteur de zone : zone des commandes `light.*`, 0 = toutes les zones, 1–8 |
+| `zones.zone<n>.*` | Uniquement avec un canal par zone : `on`, `mode`, `brightness`, `colorTemperature`, `color`, `hue`, `saturation`, `scene`, `speedUp`, `speedDown` pour la zone n |
+| `dp101.raw` | Dernière trame du point de données 101 en Base64 — l'écriture envoie la valeur telle quelle |
+| `dp101.hex` | Dernière trame du point de données 101 en octets hexadécimaux — l'écriture envoie la trame, la somme de contrôle est ajoutée ou corrigée automatiquement |
+| `dp101.checksumValid` | La somme de contrôle de la dernière trame est valide |
+| `dp101.history` | Liste JSON des 50 dernières trames (`rx` = reçue, `tx` = envoyée) avec horodatage ; les réponses d'état identiques répétées ne sont pas ajoutées |
+| `raw.dp<n>` | Tout autre point de données signalé par la passerelle est créé automatiquement (accessible en écriture) |
+
+Les valeurs qui nécessitent un mode ou des lampes allumées sont envoyées comme le fait l'application MiBoxer : par exemple, une température de couleur en mode couleur passe d'abord en mode blanc, une luminosité alors que les lampes sont éteintes les allume d'abord. Les changements rapides (par ex. d'un curseur) sont regroupés, seule la dernière valeur est envoyée. Les commandes ne sont acceptées que lorsque la passerelle est connectée. Une commande est considérée comme exécutée lorsque l'état suivant de la passerelle affiche ses valeurs (environ 2,5 s plus tard) ; jusque-là, l'état n'est pas acquitté.
+
+## Point de données 101 — protocole
+
+Le WL-433 transporte les lampes, les zones et les scènes dans le point de données 101 spécifique au fabricant : trames de 12 octets, codées en Base64, le dernier octet est la somme sur 8 bits des octets 0–10. Le format a été décodé le 22/09/2026 à partir des trames d'état d'une vraie passerelle et des commandes que l'application MiBoxer écrit dans son journal Android :
+
+| Trame | Bytes (hex) | Signification |
 | --- | --- | --- |
-| `info.connection` | – | Connexion à la passerelle |
-| `info.ip` | – | Adresse IP utilisée pour la passerelle |
-| `light.on` | 20 | Allumer/éteindre toutes les lampes |
-| `light.mode` | 21 | `white`, `colour`, `scene`, `music` |
-| `light.brightness` | 22 / 24 | Luminosité 0–100 %. En mode couleur, la luminosité de la couleur (DP 24) est modifiée, sinon la luminosité du blanc (DP 22). 0 éteint, une valeur supérieure à 0 allume |
-| `light.colorTemperature` | 23 | Température de couleur 2700–6500 K (passe en mode blanc) |
-| `light.color` | 24 | Couleur au format `#rrggbb` (passe en mode couleur) |
-| `light.countdown` | 26 | Secondes avant que la passerelle ne bascule les lampes (0 = désactivé) |
-| `dp101.raw` | 101 | Dernière trame DP 101 en Base64 — l'écriture envoie la valeur telle quelle |
-| `dp101.hex` | 101 | Dernière trame DP 101 en octets hexadécimaux — l'écriture envoie la trame, la somme de contrôle est ajoutée ou corrigée automatiquement |
-| `dp101.checksumValid` | 101 | La somme de contrôle de la dernière trame est valide |
-| `dp101.history` | 101 | Liste JSON des 50 dernières trames (`rx` = reçue, `tx` = envoyée) avec horodatage |
-| `raw.dp<n>` | n | Tout autre point de données signalé par la passerelle est créé automatiquement (modifiable) |
+| Commande (application / adaptateur → passerelle) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` commande : `01` teinte 0–255 (valeur dans les octets 5–8, passe en mode couleur), `02` luminosité 1–100 %, `03` température de couleur 0–38 (2700 K + 100 K par pas), `04` saturation 0–100 %, `05` scène 1–9, `06` touche (`01` marche, `02` arrêt, `03` S-, `04` S+, `06` mode blanc) ; `zz` zone : `00` toutes, `01`–`08` |
+| Demande d'état | `43 00 00 80 00 00 00 00 00 80 80 C3` | la passerelle répond par une trame d'état `44` |
+| État (passerelle → application) | `42` / `44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` rapport de changement (environ 2,5 s après le dernier changement), `44` réponse à la demande ; `mm` mode : `00` éteint, `01` couleur, `02` blanc, `03`–`0B` scène 1–9 ; `hh` teinte, `tt` pas de température de couleur, `bb` luminosité, `ss` saturation (0 en mode blanc). La zone ne fait pas partie de l'état |
 
-Les changements rapides (p. ex. d'un curseur) sont regroupés en une seule commande. Les commandes ne sont acceptées que lorsque la passerelle est connectée.
+Les points de données standard 20–23 sont dérivés par la passerelle de ces commandes ; l'adaptateur n'utilise que le point de données 20 (marche/arrêt, signalé avant l'état) et suit l'état du point de données 101 pour tout le reste. L'écriture du point de données couleur Tuya 24 ne change pas la couleur des lampes — l'application MiBoxer ne l'utilise pas non plus.
 
-## Point de données 101 — zones et scènes
-
-Le WL-433 transmet les commandes de zones et de scènes dans le point de données 101 spécifique au fabricant : trames binaires de 12 octets, encodées en Base64, dont le dernier octet est la somme sur 8 bits des octets 0–10. La signification des autres octets **n'est pas encore décodée**. En attendant, l'adaptateur offre un accès brut :
-
-- les trames reçues apparaissent dans `dp101.raw` / `dp101.hex` et sont enregistrées dans `dp101.history`,
-- des trames peuvent être envoyées via `dp101.hex` — 11 octets suffisent, la somme de contrôle est ajoutée automatiquement, p. ex. `43 00 00 80 00 00 00 00 00 80 80`
-
-**Aide bienvenue :** effectuez une seule action à la fois dans l'application MiBoxer (par zone : allumer, éteindre, couleur, scène 1–9) et notez les trames de `dp101.history`. Avec suffisamment d'enregistrements, les trames pourront être décodées et des états dédiés aux zones et aux scènes ajoutés. La procédure est décrite au chapitre 6 de l'analyse du protocole.
+Accès brut pour vos propres essais : `dp101.hex` accepte 11 octets (la somme de contrôle est ajoutée), par ex. `43 00 00 80 00 00 00 00 00 80 80` demande l'état.
 
 ## Limites
 
-- Les points de données standard 20–26 agissent sur toutes les lampes de la passerelle (éventuellement uniquement sur la zone sélectionnée dans l'application). Les zones et scènes séparées suivront dès que le point de données 101 sera décodé.
-- La passerelle continue de signaler son état au cloud Tuya. Bloquer complètement son accès à internet peut la rendre peu fiable.
-- Cette première version a été testée avec une simulation de la passerelle (protocole Tuya 3.3). Les retours avec du matériel réel sont les bienvenus.
+- La passerelle signale un seul état pour toutes les lampes (le dernier réglage) et non l'état de chaque zone — voir [Zones](#zones).
+- La vitesse d'une scène (S+ / S-) n'est pas signalée par la passerelle.
+- On ne peut pas voir si une lampe a réellement reçu une commande par radio : l'état provient de la passerelle.
+- La passerelle continue de signaler son état au cloud Tuya. Bloquer complètement son accès à Internet peut la rendre peu fiable.
+
+## Journalisation et dépannage
+
+L'adaptateur journalise selon un schéma fixe, afin que le journal soit à tout moment exploitable pour un dépannage :
+
+| Niveau | Ce qui est journalisé |
+| --- | --- |
+| error | Erreurs de configuration qui empêchent l'adaptateur de fonctionner (ID d'appareil manquant, clé locale différente de 16 caractères) |
+| warn | Problèmes sur lesquels vous devez agir — signalés une fois, puis seulement au niveau debug jusqu'à leur résolution : la passerelle refuse les connexions, données indéchiffrables (mauvaise clé locale), commandes non confirmées par la passerelle, demandes d'état sans réponse, valeurs de points de données ou trames d'état inattendues |
+| info | Étapes clés : résumé de la configuration au démarrage, passerelle trouvée, connectée, connexion perdue, connexion de nouveau stable, états de l'autre variante de zones supprimés |
+| debug | Chaque étape avec ses entrées, décisions et durées : changement d'état → traduction en trames du point de données 101 (avec la raison des trames supplémentaires comme « allumer d'abord ») → file d'attente → envoi → confirmation par l'état (ou la valeur encore manquante), chaque point de données et état reçu et les états mis à jour, demandes d'état, recherche. Les commandes (`#12`) et les tentatives de connexion (`Attempt #3`) sont numérotées |
+| silly | En plus, la trace du protocole de la bibliothèque tuyapi (paquets, ping/pong) avec l'étiquette `[tuyapi]` |
+
+Chaque message commence par une étiquette : `[cfg]` configuration, `[conn]` connexion, `[rx]` passerelle → états, `[cmd]` états → commandes, `[queue]` file de commandes, `[poll]` actualisation et demande d'état, `[disc]` recherche, `[dp101]` trames brutes, `[unload]` arrêt, `[tuyapi]` trace de la bibliothèque. La clé locale et les clés de session n'apparaissent jamais dans le journal — le résumé de la configuration n'indique que la longueur de la clé.
+
+Pour changer le niveau : Admin → **Instances** → mode expert → niveau de journal de `miboxer-wl433.0` → `debug` (ou `silly` pour la trace du protocole ; redémarrez ensuite l'instance). Joignez un journal debug et le contenu de `dp101.history` lorsque vous signalez un problème.
 
 ## Changelog
 <!--
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.1.0 (2026-09-22)
+
+- (ssbingo) Point de données 101 décodé : les lampes, zones et scènes sont désormais pilotées avec les commandes propres à la passerelle (la couleur ne pouvait pas être réglée auparavant), l'état est lu depuis le point de données 101 et demandé activement
+- (ssbingo) Nouveaux états : teinte, saturation, scène M1–M9, boutons S+ / S- ; zones sélectionnables dans les paramètres comme sélecteur de zone (`light.zone`) ou un canal par zone
+- (ssbingo) Les commandes sont confirmées par l'état de la passerelle, un avertissement est journalisé si la passerelle ne les confirme pas ; sortie debug détaillée pour chaque étape
+- (ssbingo) Manuel utilisateur en allemand et en anglais pour les débutants
 
 ### 0.0.1 (2026-09-21)
 

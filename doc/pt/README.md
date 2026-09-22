@@ -20,82 +20,133 @@ Este é um **projeto comunitário não oficial**. **Não tem qualquer ligação*
 
 ## Funcionamento
 
-O WL-433 contém um módulo Wi-Fi Tuya. Na rede local, o gateway é **um único** dispositivo Tuya — todas as luzes associadas são controladas através dele, e o gateway envia os comandos às luzes via LoRa (433 MHz). O adaptador comunica diretamente com o gateway através do **protocolo LAN Tuya 3.3** (porta TCP 6668, cifrado com AES e a chave local), com base na biblioteca comprovada [tuyapi](https://github.com/codetheweb/tuyapi) (também usada pelo ioBroker.tuya). As versões de protocolo 3.1, 3.4 e 3.5 também são suportadas, caso uma atualização de firmware as altere.
+O WL-433 contém um módulo Wi-Fi Tuya. Na rede local, o gateway é **um único** dispositivo Tuya: todas as lâmpadas associadas são controladas através dele e o gateway reencaminha os comandos por LoRa (433 MHz) para as lâmpadas. O adaptador fala diretamente o **protocolo LAN Tuya 3.3** (porta TCP 6668, cifra AES com a chave local) com o gateway, com base na biblioteca comprovada [tuyapi](https://github.com/codetheweb/tuyapi) (também usada pelo ioBroker.tuya). As versões de protocolo 3.1, 3.4 e 3.5 também são suportadas, caso uma atualização de firmware a altere.
+
+Lâmpadas, zonas e cenas são controladas com os comandos próprios do gateway no **ponto de dados 101** específico do fabricante — os mesmos comandos que a aplicação MiBoxer envia. O gateway comunica o seu estado da mesma forma; o adaptador também o pede ao ligar-se e em cada atualização do estado.
 
 ```text
 ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-A pesquisa de base (análise do protocolo, fontes, plano de testes) está disponível em alemão: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guia para associar as luzes ao gateway: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+**Manual** com cada passo explicado para principiantes (instalação, definições, zonas, exemplos, resolução de problemas): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
+
+Investigação de base (análise do protocolo, fontes, plano de testes, ponto de dados 101 descodificado), em alemão: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guia para associar as lâmpadas ao gateway: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
 
 ## Hardware suportado
 
 | Dispositivo | Função | Estado |
 | --- | --- | --- |
-| MiBoxer WL-433 | Obrigatório, o adaptador liga-se a ele | Protocolo Tuya 3.3 confirmado por um utilizador com hardware idêntico |
-| MiBoxer PW01 (27 W RGB+CCT PAR56) | Luz associada ao gateway | Dispositivo alvo |
-| MiBoxer PW02 (18 W RGB+CCT PAR56) | Luz associada ao gateway | Mesma família de produtos, deve funcionar |
-| MiBoxer UW01, UW02, UW03, RD-9L | Luz associada ao gateway | Não testado |
+| MiBoxer WL-433 | Obrigatório, o adaptador liga-se a ele | Testado com um gateway real (protocolo Tuya 3.3, ponto de dados 101) |
+| MiBoxer PW01 (27 W RGB+CCT PAR56) | Lâmpada associada ao gateway | Dispositivo alvo |
+| MiBoxer PW02 (18 W RGB+CCT PAR56) | Lâmpada associada ao gateway | Mesma família de produtos, deverá funcionar |
+| MiBoxer UW01, UW02, UW03, RD-9L | Lâmpada associada ao gateway | Não testado |
 
 ## Requisitos
 
-1. O gateway está configurado na app MiBoxer e as luzes estão associadas a ele.
-2. **ID do dispositivo e chave local** do gateway. O fabricante não suporta a plataforma de programadores Tuya para o WL-433, mas a app MiBoxer escreve ambos os valores no seu registo de depuração: no Android, leia o registo com um visualizador logcat como o *LogFox* enquanto a app inicia e controla o gateway. **A chave local muda sempre que o gateway é emparelhado novamente** — nesse caso tem de ser lida e introduzida outra vez.
-3. O gateway está acessível a partir do ioBroker (mesma rede). Recomenda-se uma reserva DHCP; sem endereço IP configurado, o adaptador encontra o gateway pelas suas difusões UDP (portas 6666/6667).
-4. **Os dispositivos Tuya aceitam apenas uma ligação local.** Feche a app MiBoxer nos telemóveis da mesma rede e não controle o gateway ao mesmo tempo com outras integrações locais (ioBroker.tuya, Home Assistant, tinytuya).
+1. O gateway está configurado na aplicação MiBoxer e as lâmpadas estão associadas a ele.
+2. **ID do dispositivo e chave local** do gateway. O fabricante não suporta a plataforma de programadores Tuya para o WL-433, mas a aplicação MiBoxer escreve ambos os valores no seu registo de depuração: no Android, leia o registo com um visualizador logcat como o *LogFox* enquanto a aplicação arranca e controla o gateway. **A chave local muda sempre que o gateway é emparelhado de novo** — nesse caso tem de ser lida e introduzida novamente. Guia passo a passo para principiantes (em alemão, para Android, iPhone e iPad): [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
+3. O gateway está acessível a partir do ioBroker (mesma rede). Recomenda-se uma reserva DHCP; sem endereço IP configurado, o adaptador encontra o gateway através das suas difusões UDP (portas 6666/6667).
+4. **Os dispositivos Tuya normalmente aceitam apenas uma ligação local.** Num teste, a aplicação MiBoxer e o adaptador estiveram ligados ao mesmo tempo; mas se a ligação falhar repetidamente, feche a aplicação nos telemóveis da mesma rede e não controle o gateway ao mesmo tempo com outras integrações locais (ioBroker.tuya, Home Assistant, tinytuya).
 
 ## Configuração
 
 | Definição | Descrição |
 | --- | --- |
-| ID do dispositivo | ID Tuya do gateway WL-433 |
+| ID do dispositivo | ID do dispositivo Tuya do gateway WL-433 |
 | Chave local | Chave local Tuya de 16 caracteres (guardada cifrada) |
 | Endereço IP do gateway | Deixe vazio para encontrar o gateway automaticamente na rede local |
 | Versão do protocolo Tuya | 3.3 para o WL-433 (3.1, 3.4 e 3.5 selecionáveis) |
-| Procurar gateway na rede local | Botão: encontra o gateway pelo ID do dispositivo e preenche o endereço IP e a versão do protocolo. Sem ID lista todos os dispositivos Tuya encontrados |
-| Atraso de religação | Segundos até nova tentativa de ligação (predefinição 30) |
-| Intervalo de atualização do estado | Segundos entre pedidos completos de estado (predefinição 60, 0 = apenas atualizações enviadas pelo gateway) |
+| Procurar o gateway na rede local | Botão: encontra o gateway pelo ID do dispositivo e preenche o endereço IP e a versão do protocolo. Sem ID do dispositivo, são listados todos os dispositivos Tuya encontrados |
+| Tempo até voltar a ligar | Segundos até tentar de novo uma ligação perdida ou falhada (predefinição 30) |
+| Intervalo de atualização do estado | Segundos entre pedidos de estado completos (predefinição 60, 0 = apenas as atualizações enviadas pelo gateway) |
+| Controlo de zonas | *Seletor de zona* (predefinição) ou *um canal por zona*, ver [Zonas](#zonas) |
+
+## Zonas
+
+O gateway controla até 8 zonas (como o comando FUT086). Cada comando pode ir para uma zona ou para todas, mas o gateway comunica **apenas um estado para todas as lâmpadas: a última definição, independentemente da zona para a qual foi enviada**. A aplicação MiBoxer também não mostra um estado próprio por zona. A definição *Controlo de zonas* oferece duas variantes:
+
+| Variante | Estados | Adequado para |
+| --- | --- | --- |
+| **Seletor de zona (predefinição)** | `light.*` mostra o estado do gateway. `light.zone` (0 = todas as zonas, 1–8) seleciona a zona para a qual os comandos de `light.*` são enviados. | A maioria dos utilizadores: cada estado mostra o que o gateway comunica |
+| **Um canal por zona** | `light.*` mostra o estado do gateway e envia para todas as zonas. Além disso, `zones.zone1` … `zones.zone8` controlam cada zona separadamente. Um canal de zona mostra os últimos valores enviados para essa zona e confirmados pelo gateway; fica vazio até ser enviado algo para a zona. | Scripts e visualizações que se dirigem diretamente às zonas |
+
+Ao alterar a definição, os estados da outra variante são eliminados.
 
 ## Estados
 
-| State | Tuya DP | Descrição |
+| State | Descrição |
+| --- | --- |
+| `info.connection` | Ligação ao gateway |
+| `info.ip` | Endereço IP utilizado para o gateway |
+| `light.on` | Ligar / desligar |
+| `light.mode` | `white`, `colour` ou `scene` — escrevê-lo muda o modo (modo de cor com o último tom, modo de cena com a última cena) |
+| `light.brightness` | Brilho 1–100 % do modo atual. 0 desliga, um valor acima de 0 liga |
+| `light.colorTemperature` | Temperatura de cor 2700–6500 K em passos de 100 K (muda para o modo branco) |
+| `light.color` | Cor como `#rrggbb` com brilho máximo (muda para o modo de cor). Escrevê-la define o tom e a saturação, o brilho do valor RGB é ignorado — use `light.brightness` |
+| `light.hue` | Tom 0–360° (muda para o modo de cor) |
+| `light.saturation` | Saturação 0–100 % (muda para o modo de cor) |
+| `light.scene` | Cena 1–9 (M1–M9 na aplicação), 0 = sem cena. Escrever 1–9 inicia a cena |
+| `light.speedUp` / `light.speedDown` | Botões S+ / S- da aplicação: cena mais rápida / mais lenta. O gateway não comunica a velocidade |
+| `light.countdown` | Segundos até o gateway comutar as lâmpadas (0 = desativado, ponto de dados padrão 26) |
+| `light.zone` | Apenas com o seletor de zona: zona dos comandos `light.*`, 0 = todas as zonas, 1–8 |
+| `zones.zone<n>.*` | Apenas com um canal por zona: `on`, `mode`, `brightness`, `colorTemperature`, `color`, `hue`, `saturation`, `scene`, `speedUp`, `speedDown` para a zona n |
+| `dp101.raw` | Última trama do ponto de dados 101 em Base64 — escrevê-la envia o valor sem alterações |
+| `dp101.hex` | Última trama do ponto de dados 101 em bytes hexadecimais — escrevê-la envia a trama, a soma de verificação é acrescentada ou corrigida automaticamente |
+| `dp101.checksumValid` | A soma de verificação da última trama é válida |
+| `dp101.history` | Lista JSON das últimas 50 tramas (`rx` = recebida, `tx` = enviada) com carimbo temporal; respostas de estado idênticas repetidas não são acrescentadas |
+| `raw.dp<n>` | Qualquer outro ponto de dados comunicado pelo gateway é criado automaticamente (com escrita) |
+
+Os valores que precisam de um modo ou das lâmpadas ligadas são enviados como faz a aplicação MiBoxer: por exemplo, uma temperatura de cor no modo de cor muda primeiro para o modo branco, e um brilho com as lâmpadas desligadas liga-as primeiro. Alterações rápidas (p. ex. de um cursor) são agrupadas, só o último valor é enviado. Os comandos só são aceites enquanto o gateway está ligado. Um comando é considerado executado quando o estado seguinte do gateway mostra os seus valores (cerca de 2,5 s depois); até lá, o estado não está confirmado.
+
+## Ponto de dados 101 — protocolo
+
+O WL-433 transporta lâmpadas, zonas e cenas no ponto de dados 101 específico do fabricante: tramas de 12 bytes codificadas em Base64, o último byte é a soma de 8 bits dos bytes 0–10. O formato foi descodificado em 22/09/2026 a partir das tramas de estado de um gateway real e dos comandos que a aplicação MiBoxer escreve no seu registo Android:
+
+| Trama | Bytes (hex) | Significado |
 | --- | --- | --- |
-| `info.connection` | – | Ligação ao gateway |
-| `info.ip` | – | Endereço IP usado para o gateway |
-| `light.on` | 20 | Ligar/desligar todas as luzes |
-| `light.mode` | 21 | `white`, `colour`, `scene`, `music` |
-| `light.brightness` | 22 / 24 | Brilho 0–100 %. No modo de cor altera-se o brilho da cor (DP 24), caso contrário o brilho do branco (DP 22). 0 desliga, um valor acima de 0 liga |
-| `light.colorTemperature` | 23 | Temperatura de cor 2700–6500 K (muda para o modo branco) |
-| `light.color` | 24 | Cor como `#rrggbb` (muda para o modo de cor) |
-| `light.countdown` | 26 | Segundos até o gateway comutar as luzes (0 = desligado) |
-| `dp101.raw` | 101 | Última trama DP 101 em Base64 — escrever envia o valor sem alterações |
-| `dp101.hex` | 101 | Última trama DP 101 em bytes hex — escrever envia a trama, a soma de verificação é acrescentada ou corrigida automaticamente |
-| `dp101.checksumValid` | 101 | A soma de verificação da última trama é válida |
-| `dp101.history` | 101 | Lista JSON das últimas 50 tramas (`rx` = recebida, `tx` = enviada) com carimbo temporal |
-| `raw.dp<n>` | n | Qualquer outro ponto de dados comunicado pelo gateway é criado automaticamente (gravável) |
+| Comando (aplicação / adaptador → gateway) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` comando: `01` tom 0–255 (valor nos bytes 5–8, muda para o modo de cor), `02` brilho 1–100 %, `03` temperatura de cor 0–38 (2700 K + 100 K por passo), `04` saturação 0–100 %, `05` cena 1–9, `06` tecla (`01` ligar, `02` desligar, `03` S-, `04` S+, `06` modo branco); `zz` zona: `00` todas, `01`–`08` |
+| Pedido de estado | `43 00 00 80 00 00 00 00 00 80 80 C3` | o gateway responde com uma trama de estado `44` |
+| Estado (gateway → aplicação) | `42` / `44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` relatório de alteração (cerca de 2,5 s após a última alteração), `44` resposta ao pedido; `mm` modo: `00` desligado, `01` cor, `02` branco, `03`–`0B` cena 1–9; `hh` tom, `tt` passo de temperatura de cor, `bb` brilho, `ss` saturação (0 no modo branco). A zona não faz parte do estado |
 
-Alterações rápidas (por exemplo, de um cursor) são agrupadas num único comando. Os comandos só são aceites enquanto o gateway estiver ligado.
+O gateway deriva os pontos de dados padrão 20–23 destes comandos; o adaptador usa apenas o ponto de dados 20 (ligar/desligar, chega antes do estado) e segue o estado do ponto de dados 101 para tudo o resto. Escrever o ponto de dados de cor Tuya 24 não muda a cor das lâmpadas — a aplicação MiBoxer também não o usa.
 
-## Ponto de dados 101 — zonas e cenas
-
-O WL-433 transmite os comandos de zonas e cenas no ponto de dados 101 específico do fabricante: tramas binárias de 12 bytes, codificadas em Base64, em que o último byte é a soma de 8 bits dos bytes 0–10. O significado dos restantes bytes **ainda não foi descodificado**. Até lá, o adaptador oferece acesso direto:
-
-- as tramas recebidas aparecem em `dp101.raw` / `dp101.hex` e ficam registadas em `dp101.history`,
-- é possível enviar tramas através de `dp101.hex` — bastam 11 bytes, a soma de verificação é acrescentada automaticamente, p. ex. `43 00 00 80 00 00 00 00 00 80 80`
-
-**Procura-se ajuda:** execute uma ação de cada vez na app MiBoxer (por zona: ligar, desligar, cor, cena 1–9) e anote as tramas de `dp101.history`. Com registos suficientes será possível descodificar as tramas e acrescentar estados próprios para zonas e cenas. O procedimento está descrito no capítulo 6 da análise do protocolo.
+Acesso direto para as suas próprias experiências: `dp101.hex` aceita 11 bytes (a soma de verificação é acrescentada), p. ex. `43 00 00 80 00 00 00 00 00 80 80` pede o estado.
 
 ## Limitações
 
-- Os pontos de dados padrão 20–26 atuam sobre todas as luzes do gateway (possivelmente apenas sobre a zona selecionada na app). Zonas e cenas separadas virão quando o ponto de dados 101 estiver descodificado.
-- O gateway continua a comunicar o seu estado à nuvem Tuya. Bloquear totalmente o acesso à internet pode torná-lo pouco fiável.
-- Esta primeira versão foi testada com uma simulação do gateway (protocolo Tuya 3.3). Comentários com hardware real são muito bem-vindos.
+- O gateway comunica um único estado para todas as lâmpadas (a última definição) e não o estado de cada zona — ver [Zonas](#zonas).
+- O gateway não comunica a velocidade de uma cena (S+ / S-).
+- Não é possível ver se uma lâmpada recebeu de facto um comando por rádio: o estado vem do gateway.
+- O gateway continua a comunicar o seu estado à nuvem Tuya. Bloquear completamente o seu acesso à Internet pode torná-lo pouco fiável.
+
+## Registo e resolução de problemas
+
+O adaptador regista segundo um esquema fixo, para que o registo seja sempre útil para localizar erros:
+
+| Nível | O que é registado |
+| --- | --- |
+| error | Erros de configuração que impedem o adaptador de funcionar (falta o ID do dispositivo, chave local sem 16 caracteres) |
+| warn | Problemas sobre os quais tem de agir — comunicados uma vez e depois só ao nível debug até serem resolvidos: o gateway recusa ligações, dados que não podem ser decifrados (chave local errada), comandos não confirmados pelo gateway, pedidos de estado sem resposta, valores de pontos de dados ou tramas de estado inesperados |
+| info | Marcos: resumo da configuração no arranque, gateway encontrado, ligado, ligação perdida, ligação de novo estável, estados da outra variante de zonas removidos |
+| debug | Cada passo com as suas entradas, decisões e durações: alteração de estado → tradução em tramas do ponto de dados 101 (com o motivo de tramas adicionais como «ligar primeiro») → fila → envio → confirmação pelo estado (ou qual valor ainda falta), cada ponto de dados e estado recebido e os estados atualizados, pedidos de estado, pesquisa. Os comandos (`#12`) e as tentativas de ligação (`Attempt #3`) são numerados |
+| silly | Adicionalmente, o rasto do protocolo da biblioteca tuyapi (pacotes, ping/pong) com a etiqueta `[tuyapi]` |
+
+Cada mensagem começa com uma etiqueta: `[cfg]` configuração, `[conn]` ligação, `[rx]` gateway → estados, `[cmd]` estados → comandos, `[queue]` fila de comandos, `[poll]` atualização e pedido de estado, `[disc]` pesquisa, `[dp101]` tramas em bruto, `[unload]` encerramento, `[tuyapi]` rasto da biblioteca. A chave local e as chaves de sessão nunca aparecem no registo — o resumo da configuração mostra apenas o comprimento da chave.
+
+Para mudar o nível: Admin → **Instâncias** → modo de especialista → nível de registo de `miboxer-wl433.0` → `debug` (ou `silly` para o rasto do protocolo; depois reinicie a instância). Anexe um registo debug e o conteúdo de `dp101.history` quando comunicar um problema.
 
 ## Changelog
 <!--
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.1.0 (2026-09-22)
+
+- (ssbingo) Ponto de dados 101 descodificado: lâmpadas, zonas e cenas são agora controladas com os comandos próprios do gateway (antes não era possível definir a cor), o estado é lido do ponto de dados 101 e pedido ativamente
+- (ssbingo) Novos estados: tom, saturação, cena M1–M9, botões S+ / S-; zonas selecionáveis nas definições como seletor de zona (`light.zone`) ou um canal por zona
+- (ssbingo) Os comandos são confirmados pelo estado do gateway, é registado um aviso se o gateway não os confirmar; saída debug detalhada para cada passo
+- (ssbingo) Manual do utilizador em alemão e inglês para principiantes
 
 ### 0.0.1 (2026-09-21)
 

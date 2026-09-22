@@ -1,76 +1,80 @@
 /**
- * Conversions between the Tuya standard light datapoints (protocol v3.3 "v2" value ranges) and ioBroker states.
+ * Conversions between the value ranges of the WL-433 (datapoint 101) and ioBroker states.
  *
- * DP 22 brightness 10..1000, DP 23 colour temperature 0..1000 (0 = warm), DP 24 colour as 12 hex characters
- * "hhhhssssvvvv" with h 0..360, s 0..1000, v 0..1000.
+ * Hue 0..255 as one byte (0 = red, the full circle of 360°), saturation and brightness 0..100 %, colour temperature
+ * in 38 steps of 100 K from 2700 K (warm) to 6500 K (cold).
  */
 
-/** Colour in the Tuya value ranges: h 0..360, s 0..1000, v 0..1000 */
-export interface TuyaHsv {
-    /** hue 0..360 */
-    h: number;
-    /** saturation 0..1000 */
-    s: number;
-    /** value (brightness) 0..1000 */
-    v: number;
-}
-
-/** Lowest raw brightness / colour value accepted by Tuya lights (1 %) */
-export const TUYA_VALUE_MIN = 10;
-/** Highest raw brightness / colour / colour temperature value */
-export const TUYA_VALUE_MAX = 1000;
-/** Colour temperature mapped to raw value 0 (warm white) */
+/** Warmest colour temperature (step 0) */
 export const KELVIN_WARM = 2700;
-/** Colour temperature mapped to raw value 1000 (cold white) */
+/** Coldest colour temperature (step 38) */
 export const KELVIN_COLD = 6500;
+/** Colour temperature per step */
+export const KELVIN_STEP = 100;
+/** Highest colour temperature step (6500 K) */
+export const TEMPERATURE_STEPS = (KELVIN_COLD - KELVIN_WARM) / KELVIN_STEP;
+
+/** Hue and saturation of a colour */
+export interface HueSaturation {
+    /** hue in degrees 0..359 */
+    hue: number;
+    /** saturation 0..100 % */
+    saturation: number;
+}
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
 }
 
 /**
- * Parses the DP 24 colour string.
+ * Converts the hue byte of the WL-433 (0..255) to degrees (0..359).
  *
- * @param value - 12 hex characters "hhhhssssvvvv"
- * @returns the colour or null if the value is not a valid colour string
+ * @param value - hue byte
  */
-export function parseTuyaHsv(value: unknown): TuyaHsv | null {
-    if (typeof value !== "string" || !/^[0-9a-fA-F]{12}$/.test(value)) {
-        return null;
-    }
-    const h = parseInt(value.substring(0, 4), 16);
-    const s = parseInt(value.substring(4, 8), 16);
-    const v = parseInt(value.substring(8, 12), 16);
-    if (h > 360 || s > TUYA_VALUE_MAX || v > TUYA_VALUE_MAX) {
-        return null;
-    }
-    return { h, s, v };
+export function hueByteToDegrees(value: number): number {
+    return Math.round((clamp(value, 0, 255) * 360) / 256) % 360;
 }
 
 /**
- * Formats a colour as DP 24 string, values are rounded and clamped to the valid ranges.
+ * Converts degrees to the hue byte of the WL-433, 360° wraps to 0.
  *
- * @param hsv - colour in Tuya value ranges
+ * @param degrees - hue in degrees, any value (cyclic)
  */
-export function formatTuyaHsv(hsv: TuyaHsv): string {
-    const h = clamp(Math.round(hsv.h), 0, 360);
-    const s = clamp(Math.round(hsv.s), 0, TUYA_VALUE_MAX);
-    const v = clamp(Math.round(hsv.v), TUYA_VALUE_MIN, TUYA_VALUE_MAX);
-    return [h, s, v].map(n => n.toString(16).padStart(4, "0")).join("");
+export function degreesToHueByte(degrees: number): number {
+    const normalized = ((degrees % 360) + 360) % 360;
+    return Math.round((normalized * 256) / 360) % 256;
 }
 
 /**
- * Converts a Tuya colour to "#rrggbb" (including the brightness component v).
+ * Converts a colour temperature step of the WL-433 (0..38) to Kelvin.
  *
- * @param hsv - colour in Tuya value ranges
+ * @param step - colour temperature step
  */
-export function tuyaHsvToRgbHex(hsv: TuyaHsv): string {
-    const s = hsv.s / TUYA_VALUE_MAX;
-    const v = hsv.v / TUYA_VALUE_MAX;
-    const h = (hsv.h % 360) / 60;
-    const c = v * s;
+export function temperatureStepToKelvin(step: number): number {
+    return KELVIN_WARM + clamp(Math.round(step), 0, TEMPERATURE_STEPS) * KELVIN_STEP;
+}
+
+/**
+ * Converts Kelvin to the nearest colour temperature step of the WL-433, clamped to 2700..6500 K.
+ *
+ * @param kelvin - colour temperature in K
+ */
+export function kelvinToTemperatureStep(kelvin: number): number {
+    return clamp(Math.round((kelvin - KELVIN_WARM) / KELVIN_STEP), 0, TEMPERATURE_STEPS);
+}
+
+/**
+ * Converts hue and saturation to "#rrggbb" at full brightness (the brightness is a separate value of the lamp).
+ *
+ * @param hue - hue in degrees
+ * @param saturation - saturation 0..100 %
+ */
+export function hueSaturationToRgbHex(hue: number, saturation: number): string {
+    const s = clamp(saturation, 0, 100) / 100;
+    const h = ((((hue % 360) + 360) % 360) / 60) % 6;
+    const c = s;
     const x = c * (1 - Math.abs((h % 2) - 1));
-    const m = v - c;
+    const m = 1 - c;
     let rgb: [number, number, number];
     if (h < 1) {
         rgb = [c, x, 0];
@@ -95,13 +99,13 @@ export function tuyaHsvToRgbHex(hsv: TuyaHsv): string {
 }
 
 /**
- * Converts "#rrggbb" (or "rrggbb", "#rgb") to a Tuya colour. The brightness component v follows the
- * brightest RGB channel, so "#800000" results in half brightness red.
+ * Converts "#rrggbb" (or "rrggbb", "#rgb") to hue and saturation. The brightness of the RGB value is ignored,
+ * "#800000" and "#ff0000" are both fully saturated red.
  *
  * @param rgb - colour string
- * @returns the colour or null if the string is not a valid RGB colour
+ * @returns hue and saturation or null if the string is not a valid RGB colour
  */
-export function rgbHexToTuyaHsv(rgb: string): TuyaHsv | null {
+export function rgbHexToHueSaturation(rgb: string): HueSaturation | null {
     let hex = rgb.trim().replace(/^#/, "");
     if (/^[0-9a-fA-F]{3}$/.test(hex)) {
         hex = hex
@@ -118,58 +122,18 @@ export function rgbHexToTuyaHsv(rgb: string): TuyaHsv | null {
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     const delta = max - min;
-    let h = 0;
+    let hue = 0;
     if (delta > 0) {
         if (max === r) {
-            h = 60 * (((g - b) / delta + 6) % 6);
+            hue = 60 * (((g - b) / delta + 6) % 6);
         } else if (max === g) {
-            h = 60 * ((b - r) / delta + 2);
+            hue = 60 * ((b - r) / delta + 2);
         } else {
-            h = 60 * ((r - g) / delta + 4);
+            hue = 60 * ((r - g) / delta + 4);
         }
     }
-    const s = max === 0 ? 0 : delta / max;
     return {
-        h: Math.round(h) % 360,
-        s: Math.round(s * TUYA_VALUE_MAX),
-        v: clamp(Math.round(max * TUYA_VALUE_MAX), TUYA_VALUE_MIN, TUYA_VALUE_MAX),
+        hue: Math.round(hue) % 360,
+        saturation: max === 0 ? 0 : Math.round((delta / max) * 100),
     };
-}
-
-/**
- * Converts a raw brightness (DP 22 or the v part of DP 24, 10..1000) to percent (1..100).
- *
- * @param value - raw brightness
- */
-export function rawToPercent(value: number): number {
-    return clamp(Math.round(value / 10), 1, 100);
-}
-
-/**
- * Converts percent (1..100) to a raw brightness value (10..1000).
- *
- * @param percent - brightness in percent
- */
-export function percentToRaw(percent: number): number {
-    return clamp(Math.round(percent * 10), TUYA_VALUE_MIN, TUYA_VALUE_MAX);
-}
-
-/**
- * Converts the raw colour temperature (DP 23, 0 = warm .. 1000 = cold) to Kelvin.
- *
- * @param value - raw colour temperature
- */
-export function rawToKelvin(value: number): number {
-    const raw = clamp(value, 0, TUYA_VALUE_MAX);
-    return Math.round(KELVIN_WARM + (raw / TUYA_VALUE_MAX) * (KELVIN_COLD - KELVIN_WARM));
-}
-
-/**
- * Converts Kelvin to the raw colour temperature (DP 23), clamped to the supported range.
- *
- * @param kelvin - colour temperature in K
- */
-export function kelvinToRaw(kelvin: number): number {
-    const k = clamp(kelvin, KELVIN_WARM, KELVIN_COLD);
-    return Math.round(((k - KELVIN_WARM) / (KELVIN_COLD - KELVIN_WARM)) * TUYA_VALUE_MAX);
 }

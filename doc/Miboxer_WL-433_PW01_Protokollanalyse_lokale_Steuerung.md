@@ -2,13 +2,13 @@
 title: "Miboxer WL-433 + PW01 – Lokale Steuerung ohne Cloud, Protokollanalyse und ioBroker-Integration"
 subtitle: "Recherchebericht mit Quellenbelegen (Herstellerdokumente, Normen, Datenblätter, Fachliteratur, Quellcode)"
 author: "Recherche für Silvio Sternitzke"
-date: "21. September 2026"
+date: "21. September 2026, Nachtrag 22. September 2026"
 lang: de
 ---
 
 # Miboxer WL-433 + PW01 – Lokale Steuerung ohne Cloud, Protokollanalyse und ioBroker-Integration
 
-**Recherchebericht, Stand 21.09.2026**
+**Recherchebericht, Stand 21.09.2026 – Nachtrag 22.09.2026: Datenpunkt 101 vollständig entschlüsselt (Kapitel 3.1.8)**
 
 Untersuchte Geräte: Miboxer **PW01** (27 W RGB+CCT PAR56 LED-Poolleuchte, LoRa 433 MHz) und Miboxer **WL-433** (LoRa-433-MHz-Gateway, WLAN 802.11b/g/n, DMX512-Eingang). Hersteller: Shenzhen Futlight Optoelectronics Co., Ltd. (Marken „Mi-Light“ / „MiBoxer“).
 
@@ -22,6 +22,7 @@ Zitierweise: Jede Aussage trägt eine Quellen-ID in eckigen Klammern. Die Präfi
 | **I** | ioBroker-Adapter (README, Quellcode, Releases, ioBroker-Forum) | [I1] |
 | **D** | DMX-/Art-Net-Hardware und -Firmware | [D1] |
 | **R** | RF-/LoRa-Werkzeuge und Reverse-Engineering-Projekte | [R1] |
+| **E** | Eigene Messungen am echten Gateway (Nachtrag 22.09.2026) | [E1] |
 
 Aussagen, die **nicht** aus einer Quelle stammen, sondern eigene Schlussfolgerungen sind, werden ausdrücklich als **[Inferenz]** gekennzeichnet.
 
@@ -201,6 +202,8 @@ Tuya-Gateways für Zigbee/BLE adressieren ihre Sub-Devices über `cid`/`node_id`
 
 #### 3.1.5 Der herstellerspezifische Datenpunkt 101 – Stand der Dekodierung
 
+> **Nachtrag 22.09.2026:** Der Stand dieses Abschnitts ist überholt – Befehle, Statusabfrage und Status sind inzwischen an einem echten Gateway entschlüsselt und im Adapter umgesetzt, siehe **3.1.8**.
+
 Aus [C1] (Beiträge von „Silverstar“ und dem tinytuya-Mitentwickler „uzlonewolf“, 04.06.2025):
 
 - DP 101 transportiert Base64-kodierte Binärdaten: „It does not appear to be encrypted or anything, it's just base64 encoded.“ – „Base64 is pretty common on Tuya devices for variable-length binary data“.
@@ -240,6 +243,52 @@ Die iBox1/iBox2-Bridges der Vorgängergeneration hatten eine offene UDP-API (v5:
 | Laufender Betrieb über LAN | Nein (Tuya-Lokalprotokoll) – aber Gerät sendet weiter Status an die Cloud und kann bei Dauersperre unzuverlässig werden | [C4][I1] |
 | Laufender Betrieb über DMX | Nein | [H1] |
 | Setzen der DMX-Startadresse | Ja (App) | [H1] |
+
+#### 3.1.8 Datenpunkt 101 – entschlüsseltes Format (Nachtrag 22.09.2026)
+
+**Vorgehen.** Zwei unabhängige Quellen wurden ausgewertet, jeweils mit genau **einer** Aktion in der MiBoxer-App pro Schritt:
+
+1. **Statusframes des Gateways** [E1]: Der ioBroker-Adapter (Version 0.0.1) war mit einem echten WL-433 verbunden und hat jeden empfangenen DP-101-Frame in `dp101.history` und im Debug-Log protokolliert. Jede Aktion in der App (Helligkeit, Farbtemperatur, Farbe, Sättigung, Ein/Aus, Modi M1–M3, S+/S-, Zonen) wurde zeitlich mit den gleichzeitig gemeldeten Standard-Datenpunkten 20–23 abgeglichen.
+2. **Befehle der App** [E2]: Ein Android-Smartphone (Android 13) wurde per USB-Debugging bzw. WLAN-adb mit einem Rechner verbunden und das Systemprotokoll mit `adb logcat` mitgeschnitten. Die MiBoxer-App (Paket `com.futlight.miboxer`) schreibt jeden DP-101-Befehl als Zeile `ayxsendData =<hex>` und jeden empfangenen Wert als `list value = {…}` ins Log; das Tuya-SDK protokolliert zusätzlich `publishDps() called with: dps = […], pipeline = [LAN]` bzw. `[MQTT]`. Unter iOS gibt es keinen vergleichbaren Zugang zum Protokoll anderer Apps – dafür wird ein Android-Gerät benötigt.
+
+**Befehlsframe (App → Gateway), Typ 0x41:**
+
+| Byte | 0 | 1–2 | 3 | 4 | 5 | 6–8 | 9 | 10 | 11 |
+|---|---|---|---|---|---|---|---|---|---|
+| Inhalt | `41` | `00 00` | `0B` | Befehl | Wert | beim Farbton = Wert, sonst `00` | Zone | `80` | Prüfsumme |
+
+| Befehl (Byte 4) | Bedeutung | Wert (Byte 5) | Mitschnitt (Beispiel) [E2] |
+|---|---|---|---|
+| `01` | Farbton, schaltet zugleich in den Farbmodus | 0–255 (0 = rot, 360° auf 256 Stufen) | `41 00 00 0B 01 49 49 49 49 01 80 F2` |
+| `02` | Helligkeit | 1–100 % | `41 00 00 0B 02 33 00 00 00 01 80 02` |
+| `03` | Farbtemperatur | 0–38 (2700 K + 100 K je Stufe) | `41 00 00 0B 03 12 00 00 00 01 80 E2` |
+| `04` | Sättigung | 0–100 % | `41 00 00 0B 04 34 00 00 00 01 80 05` |
+| `05` | Szene / Modus M1–M9 | 1–9 | `41 00 00 0B 05 01 00 00 00 01 80 D3` |
+| `06` | Taste | `01` ein, `02` aus, `03` S- (langsamer), `04` S+ (schneller), `06` Weißmodus | `41 00 00 0B 06 02 00 00 00 01 80 D5` |
+
+Zone (Byte 9): `00` = alle Zonen („ALL“), `01`–`08` = Zone 1–8 [E2]. Die App setzt die Zonenwahl nach einem Neustart auf Zone 1 zurück. Ein eigener Tastencode für den Farbmodus existiert nicht – die App wechselt in den Farbmodus, indem sie den Farbton sendet. Beim Ziehen eines Schiebereglers sendet die App die Zwischenwerte im Abstand von etwa 170 ms.
+
+**Statusabfrage, Typ 0x43:** `43 00 00 80 00 00 00 00 00 80 80 C3` – der in [C1] veröffentlichte Frame. Die App sendet ihn beim Öffnen mehrfach im Abstand von etwa 0,7 s und danach etwa alle 36 s; das Gateway antwortet nach etwa 0,4 s mit einem Statusframe vom Typ 0x44 [E1][E2].
+
+**Statusframe (Gateway → App), Typ 0x42 / 0x44:**
+
+| Byte | 0 | 1–3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Inhalt | `42` Änderungsmeldung / `44` Antwort auf 0x43 | `00 00 00` | Modus: `00` aus, `01` Farbe, `02` Weiß, `03`–`0B` M1–M9 | Farbton | Farbtemperaturstufe | Helligkeit % | Sättigung % (im Weißmodus `00`) | `0B` | `01` | Prüfsumme |
+
+Belege [E1]: Helligkeitsregler im Weißmodus min/mittel/max → Byte 7 = `01` / `2F` / `64` bei DP 22 = 10 / 470 / 1000; Farbtemperatur warm/mittel/kalt → Byte 6 = `00` / `11`–`12` / `26` bei DP 23 = 0 / 440–490 / 1000; Sättigung max/mittel → Byte 8 = `64` / `2F`; Ein/Aus → Byte 4 = `01` ↔ `00`; M1/M2/M3 → Byte 4 = `03` / `04` / `05`; die App zeigte dabei die Werte 1:1 an (Farbe „rgb251“ = Byte 5 `FB`, Sättigung 86 % = Byte 8 `56`, 6500 K = Byte 6 `26`). Die Änderungsmeldung 0x42 kommt etwa 2,5 s nach der letzten Änderung; einzelne Frames werden nach etwa 2 s wiederholt.
+
+**Weitere Befunde [E1][E2]:**
+
+- **Ein Status für alle Zonen.** Der Status enthält keine Zone; die Bytes 1–3, 9 und 10 waren in allen Mitschnitten konstant. Das Gateway führt nur den zuletzt gesetzten Zustand, unabhängig von der Zone – auch die App zeigt keinen Unterschied zwischen den Zonen.
+- **Abgeleitete Standard-Datenpunkte.** DP 20–23 erzeugt das Gateway aus den DP-101-Befehlen (DP 22 = Helligkeit × 10, DP 23 ≈ Stufe × 26). Nach einem Moduswechsel sendet es DP 22 nicht neu; solange das Licht aus ist, meldet DP 21 „white“.
+- **DP 24 wird von der App nicht verwendet.** Ein Schreibversuch mit `007803e803e8` (Grün, v2-Format) wurde vom Gateway zurückgemeldet, änderte aber den Farbton nicht und setzte die Sättigung auf 0.
+- **Unbekannte Frame-Typen werden verworfen.** Ein nach dem Statusmuster gebauter Frame mit Typ 0x42 und `80` in Byte 10 blieb ohne Reaktion.
+- **Geschwindigkeit nicht im Status.** S+ und S- lösen nur eine unveränderte Statusmeldung aus.
+- **Zwei lokale Verbindungen.** Während der Mitschnitte waren der Adapter und die App gleichzeitig per LAN mit dem Gateway verbunden; die App wich zeitweise auf die Cloud (MQTT) aus.
+- **Noch unbekannt:** Frame-Typ 0x49 aus [C1] (`49 00 00 0B 02 00 01 00 00 00 80`) und Tastencode `06 05`.
+
+**Verifikation.** Der Adapter ab Version 0.1.0 sendet diese Befehle selbst. Am echten Gateway wurden Helligkeit (alle Zonen), Farbe (Farbton + Sättigung), Szene M2, Weiß 3000 K in Zone 1 und Helligkeit in Zone 2 gesetzt und jeweils nach etwa 2,7 s durch die Statusmeldung bestätigt [E1].
 
 ### 3.2 Schicht 2: DMX512-Eingang
 
@@ -425,7 +474,7 @@ Ziel: mit minimalem Aufwand die drei offenen Fragen klären (1) spricht das WL-4
 |---|---|---|---|
 | 1 | Lässt sich das WL-433 in Tuya Smart / Smart Life pairen (und damit in `ioBroker.tuya` synchronisieren)? | Händler: ja [H16]; Hersteller: keine Aussage; Anwender: nicht über IoT-Plattform [C1] | Eigener Versuch (Prüfplan 3b) |
 | 2 | Enthält das synchronisierte Schema DP 101? | unbekannt | `ioBroker.tuya`-Log auf „Unknown datapoint 101“ prüfen [I2] |
-| 3 | Byte-Belegung von DP 101 | teilweise (Länge 12, Prüfsumme) [C1] | Prüfplan 6 |
+| 3 | Byte-Belegung von DP 101 | **gelöst** (22.09.2026): Befehle, Statusabfrage und Status entschlüsselt, siehe 3.1.8 [E1][E2]; offen nur Typ 0x49 und Taste `06 05` | – |
 | 4 | DMX-Steckertyp/Pinout, Zonenzuordnung, Priorität DMX vs. App | undokumentiert [H1] | Inspektion, Test |
 | 5 | LoRa-Chip und -Parameter | Behauptung SX1278 [R1], sonst nichts | FUT086 öffnen, SDR |
 | 6 | Betriebsspannung PW01 (DC 24 V vs. AC 12 V/DC 12–24 V) | widersprüchlich [H3][H4] | Hersteller |
@@ -533,6 +582,11 @@ Alle URLs wurden im Rahmen der Recherche (September 2026) abgerufen oder – wo 
 - **[R21]** Broadlink: *RM4 pro – User Guide* (manuals.plus). https://manuals.plus/broadlink/broadlink-rm4-pro-smart-remote-and-sensor-cable-set-rm4-pro-s-universal-ir-rf-remote-control-complete-features-user-guide
 - **[R22]** Semtech (2024): *AN1200.85 – Channel Activity Detection (CAD)*, v2.0. https://www.semtech.com/uploads/technology/LoRa/cad-ensuring-lora-packets.pdf
 - **[R23]** haksht: *lorecon* (ESP32-S3 + SX1262 LoRa-Recon). https://github.com/haksht/lorecon
+
+### E – Eigene Messungen (Nachtrag 22.09.2026)
+
+- **[E1]** Mitschnitte der DP-101-Statusframes eines WL-433 (Tuya-Protokoll 3.3) mit dem Adapter ioBroker.miboxer-wl433 0.0.1 (`dp101.history`, Debug-Log) und Verifikation der Befehle mit Version 0.1.0, 22.09.2026.
+- **[E2]** Android-Systemprotokoll (`adb logcat`) der MiBoxer-App `com.futlight.miboxer` auf einem Android-13-Smartphone: Zeilen `ayxsendData =…`, `list value = …` und `publishDps()`, 22.09.2026.
 
 ### S – Normen, Regulierung, Datenblätter, Patente, Fachliteratur
 

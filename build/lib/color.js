@@ -19,51 +19,43 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var color_exports = {};
 __export(color_exports, {
   KELVIN_COLD: () => KELVIN_COLD,
+  KELVIN_STEP: () => KELVIN_STEP,
   KELVIN_WARM: () => KELVIN_WARM,
-  TUYA_VALUE_MAX: () => TUYA_VALUE_MAX,
-  TUYA_VALUE_MIN: () => TUYA_VALUE_MIN,
-  formatTuyaHsv: () => formatTuyaHsv,
-  kelvinToRaw: () => kelvinToRaw,
-  parseTuyaHsv: () => parseTuyaHsv,
-  percentToRaw: () => percentToRaw,
-  rawToKelvin: () => rawToKelvin,
-  rawToPercent: () => rawToPercent,
-  rgbHexToTuyaHsv: () => rgbHexToTuyaHsv,
-  tuyaHsvToRgbHex: () => tuyaHsvToRgbHex
+  TEMPERATURE_STEPS: () => TEMPERATURE_STEPS,
+  degreesToHueByte: () => degreesToHueByte,
+  hueByteToDegrees: () => hueByteToDegrees,
+  hueSaturationToRgbHex: () => hueSaturationToRgbHex,
+  kelvinToTemperatureStep: () => kelvinToTemperatureStep,
+  rgbHexToHueSaturation: () => rgbHexToHueSaturation,
+  temperatureStepToKelvin: () => temperatureStepToKelvin
 });
 module.exports = __toCommonJS(color_exports);
-const TUYA_VALUE_MIN = 10;
-const TUYA_VALUE_MAX = 1e3;
 const KELVIN_WARM = 2700;
 const KELVIN_COLD = 6500;
+const KELVIN_STEP = 100;
+const TEMPERATURE_STEPS = (KELVIN_COLD - KELVIN_WARM) / KELVIN_STEP;
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
-function parseTuyaHsv(value) {
-  if (typeof value !== "string" || !/^[0-9a-fA-F]{12}$/.test(value)) {
-    return null;
-  }
-  const h = parseInt(value.substring(0, 4), 16);
-  const s = parseInt(value.substring(4, 8), 16);
-  const v = parseInt(value.substring(8, 12), 16);
-  if (h > 360 || s > TUYA_VALUE_MAX || v > TUYA_VALUE_MAX) {
-    return null;
-  }
-  return { h, s, v };
+function hueByteToDegrees(value) {
+  return Math.round(clamp(value, 0, 255) * 360 / 256) % 360;
 }
-function formatTuyaHsv(hsv) {
-  const h = clamp(Math.round(hsv.h), 0, 360);
-  const s = clamp(Math.round(hsv.s), 0, TUYA_VALUE_MAX);
-  const v = clamp(Math.round(hsv.v), TUYA_VALUE_MIN, TUYA_VALUE_MAX);
-  return [h, s, v].map((n) => n.toString(16).padStart(4, "0")).join("");
+function degreesToHueByte(degrees) {
+  const normalized = (degrees % 360 + 360) % 360;
+  return Math.round(normalized * 256 / 360) % 256;
 }
-function tuyaHsvToRgbHex(hsv) {
-  const s = hsv.s / TUYA_VALUE_MAX;
-  const v = hsv.v / TUYA_VALUE_MAX;
-  const h = hsv.h % 360 / 60;
-  const c = v * s;
+function temperatureStepToKelvin(step) {
+  return KELVIN_WARM + clamp(Math.round(step), 0, TEMPERATURE_STEPS) * KELVIN_STEP;
+}
+function kelvinToTemperatureStep(kelvin) {
+  return clamp(Math.round((kelvin - KELVIN_WARM) / KELVIN_STEP), 0, TEMPERATURE_STEPS);
+}
+function hueSaturationToRgbHex(hue, saturation) {
+  const s = clamp(saturation, 0, 100) / 100;
+  const h = (hue % 360 + 360) % 360 / 60 % 6;
+  const c = s;
   const x = c * (1 - Math.abs(h % 2 - 1));
-  const m = v - c;
+  const m = 1 - c;
   let rgb;
   if (h < 1) {
     rgb = [c, x, 0];
@@ -82,7 +74,7 @@ function tuyaHsvToRgbHex(hsv) {
     (component) => Math.round((component + m) * 255).toString(16).padStart(2, "0")
   ).join("")}`;
 }
-function rgbHexToTuyaHsv(rgb) {
+function rgbHexToHueSaturation(rgb) {
   let hex = rgb.trim().replace(/^#/, "");
   if (/^[0-9a-fA-F]{3}$/.test(hex)) {
     hex = hex.split("").map((ch) => ch + ch).join("");
@@ -96,50 +88,32 @@ function rgbHexToTuyaHsv(rgb) {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const delta = max - min;
-  let h = 0;
+  let hue = 0;
   if (delta > 0) {
     if (max === r) {
-      h = 60 * (((g - b) / delta + 6) % 6);
+      hue = 60 * (((g - b) / delta + 6) % 6);
     } else if (max === g) {
-      h = 60 * ((b - r) / delta + 2);
+      hue = 60 * ((b - r) / delta + 2);
     } else {
-      h = 60 * ((r - g) / delta + 4);
+      hue = 60 * ((r - g) / delta + 4);
     }
   }
-  const s = max === 0 ? 0 : delta / max;
   return {
-    h: Math.round(h) % 360,
-    s: Math.round(s * TUYA_VALUE_MAX),
-    v: clamp(Math.round(max * TUYA_VALUE_MAX), TUYA_VALUE_MIN, TUYA_VALUE_MAX)
+    hue: Math.round(hue) % 360,
+    saturation: max === 0 ? 0 : Math.round(delta / max * 100)
   };
-}
-function rawToPercent(value) {
-  return clamp(Math.round(value / 10), 1, 100);
-}
-function percentToRaw(percent) {
-  return clamp(Math.round(percent * 10), TUYA_VALUE_MIN, TUYA_VALUE_MAX);
-}
-function rawToKelvin(value) {
-  const raw = clamp(value, 0, TUYA_VALUE_MAX);
-  return Math.round(KELVIN_WARM + raw / TUYA_VALUE_MAX * (KELVIN_COLD - KELVIN_WARM));
-}
-function kelvinToRaw(kelvin) {
-  const k = clamp(kelvin, KELVIN_WARM, KELVIN_COLD);
-  return Math.round((k - KELVIN_WARM) / (KELVIN_COLD - KELVIN_WARM) * TUYA_VALUE_MAX);
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   KELVIN_COLD,
+  KELVIN_STEP,
   KELVIN_WARM,
-  TUYA_VALUE_MAX,
-  TUYA_VALUE_MIN,
-  formatTuyaHsv,
-  kelvinToRaw,
-  parseTuyaHsv,
-  percentToRaw,
-  rawToKelvin,
-  rawToPercent,
-  rgbHexToTuyaHsv,
-  tuyaHsvToRgbHex
+  TEMPERATURE_STEPS,
+  degreesToHueByte,
+  hueByteToDegrees,
+  hueSaturationToRgbHex,
+  kelvinToTemperatureStep,
+  rgbHexToHueSaturation,
+  temperatureStepToKelvin
 });
 //# sourceMappingURL=color.js.map

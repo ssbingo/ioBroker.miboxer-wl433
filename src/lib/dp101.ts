@@ -1,9 +1,9 @@
 /**
  * Codec for the vendor specific Tuya datapoint 101 of the MiBoxer WL-433 gateway.
  *
- * DP 101 carries Base64 encoded binary frames. All frames published so far are 12 bytes long and end with an
- * 8-bit checksum: byte 11 = (sum of bytes 0..10) mod 256. The meaning of bytes 0..10 (zone, scene, command)
- * is not decoded yet, therefore the adapter only transports and validates the frames.
+ * DP 101 carries Base64 encoded binary frames. All frames are 12 bytes long and end with an 8-bit checksum:
+ * byte 11 = (sum of bytes 0..10) mod 256. This module only transports and validates frames, the meaning of the
+ * bytes (commands, status) is implemented in wl433.ts.
  * See doc/Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md, chapter 3.1.5 and appendix A.
  */
 
@@ -58,6 +58,24 @@ function toFrame(bytes: Buffer): Dp101Frame {
             bytes.length === DP101_FRAME_LENGTH &&
             dp101Checksum(bytes, DP101_FRAME_LENGTH - 1) === bytes[DP101_FRAME_LENGTH - 1],
     };
+}
+
+/**
+ * Builds a frame from its 11 payload bytes and appends the checksum.
+ *
+ * @param payload - bytes 0..10, values 0..255
+ * @throws {RangeError} if the payload does not have 11 bytes
+ */
+export function buildDp101Frame(payload: ArrayLike<number>): Dp101Frame {
+    if (payload.length !== DP101_FRAME_LENGTH - 1) {
+        throw new RangeError(`A DP 101 frame needs ${DP101_FRAME_LENGTH - 1} payload bytes, got ${payload.length}`);
+    }
+    const bytes = Buffer.alloc(DP101_FRAME_LENGTH);
+    for (let i = 0; i < payload.length; i++) {
+        bytes[i] = payload[i] & 0xff;
+    }
+    bytes[DP101_FRAME_LENGTH - 1] = dp101Checksum(bytes, DP101_FRAME_LENGTH - 1);
+    return toFrame(bytes);
 }
 
 /**

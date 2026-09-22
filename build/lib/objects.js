@@ -18,42 +18,165 @@ var __copyProps = (to, from, except, desc) => {
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var objects_exports = {};
 __export(objects_exports, {
+  BASE_OBJECTS: () => BASE_OBJECTS,
   COUNTDOWN_MAX: () => COUNTDOWN_MAX,
   DP: () => DP,
   DP101_HISTORY_LENGTH: () => DP101_HISTORY_LENGTH,
   LIGHT_MODES: () => LIGHT_MODES,
-  MAPPED_DPS: () => MAPPED_DPS,
-  OBJECT_DEFINITIONS: () => OBJECT_DEFINITIONS
+  STATUS_ONLY_DPS: () => STATUS_ONLY_DPS,
+  ZONES_FOLDER: () => ZONES_FOLDER,
+  ZONE_MODES: () => ZONE_MODES,
+  lightChannel: () => lightChannel,
+  zoneChannelId: () => zoneChannelId,
+  zoneChannelObjects: () => zoneChannelObjects,
+  zoneSelectorState: () => zoneSelectorState
 });
 module.exports = __toCommonJS(objects_exports);
 var import_color = require("./color");
+var import_wl433 = require("./wl433");
 const DP = {
-  /** switch_led (bool) */
+  /** switch_led (bool), derived by the gateway from DP 101 commands */
   SWITCH: "20",
-  /** work_mode (enum white / colour / scene / music) */
+  /** work_mode (enum white / colour / scene), reports "white" while the lights are off */
   MODE: "21",
-  /** bright_value_v2 (10..1000) */
+  /** bright_value_v2 (10..1000), not updated by the gateway after a mode change */
   BRIGHTNESS: "22",
   /** temp_value_v2 (0..1000) */
   TEMPERATURE: "23",
-  /** colour_data_v2 ("hhhhssssvvvv") */
+  /** colour_data_v2 ("hhhhssssvvvv"), not used by the MiBoxer app, writing it does not set the colour */
   COLOUR: "24",
   /** countdown (0..86400 s) */
   COUNTDOWN: "26",
-  /** vendor specific raw frames (Base64) for zones and scenes */
+  /** vendor specific frames (Base64): commands, status query and status of lights, zones and scenes */
   RAW_FRAME: "101"
 };
-const MAPPED_DPS = new Set(Object.values(DP));
-const LIGHT_MODES = ["white", "colour", "scene", "music"];
+const STATUS_ONLY_DPS = /* @__PURE__ */ new Set([DP.MODE, DP.BRIGHTNESS, DP.TEMPERATURE, DP.COLOUR]);
+const LIGHT_MODES = ["white", "colour", "scene"];
+const ZONE_MODES = ["selector", "channels"];
 const COUNTDOWN_MAX = 86400;
 const DP101_HISTORY_LENGTH = 50;
+const ZONES_FOLDER = "zones";
 function state(id, common) {
   return { id, obj: { type: "state", common, native: {} } };
 }
 function channel(id, name) {
   return { id, obj: { type: "channel", common: { name }, native: {} } };
 }
-const OBJECT_DEFINITIONS = [
+function zoneChannelId(zone) {
+  return `${ZONES_FOLDER}.zone${zone}`;
+}
+function controlStates(prefix, withDefaults) {
+  const sceneStates = { 0: "\u2013" };
+  for (let scene = 1; scene <= import_wl433.SCENE_COUNT; scene++) {
+    sceneStates[scene] = `M${scene}`;
+  }
+  const definitions = [
+    state(`${prefix}.on`, {
+      name: { en: "On / off", de: "Ein / Aus" },
+      type: "boolean",
+      role: "switch.light",
+      read: true,
+      write: true,
+      def: false
+    }),
+    state(`${prefix}.mode`, {
+      name: { en: "Mode", de: "Modus" },
+      type: "string",
+      role: "text",
+      read: true,
+      write: true,
+      def: "white",
+      states: { white: "white", colour: "colour", scene: "scene" }
+    }),
+    state(`${prefix}.scene`, {
+      name: { en: "Scene M1\u2013M9 (0 = no scene)", de: "Szene M1\u2013M9 (0 = keine Szene)" },
+      type: "number",
+      role: "level",
+      read: true,
+      write: true,
+      min: 0,
+      max: import_wl433.SCENE_COUNT,
+      def: 0,
+      states: sceneStates
+    }),
+    state(`${prefix}.brightness`, {
+      name: { en: "Brightness", de: "Helligkeit" },
+      type: "number",
+      role: "level.dimmer",
+      read: true,
+      write: true,
+      min: 0,
+      max: 100,
+      unit: "%",
+      def: 100
+    }),
+    state(`${prefix}.colorTemperature`, {
+      name: { en: "Colour temperature (white mode)", de: "Farbtemperatur (Wei\xDFmodus)" },
+      type: "number",
+      role: "level.color.temperature",
+      read: true,
+      write: true,
+      min: import_color.KELVIN_WARM,
+      max: import_color.KELVIN_COLD,
+      step: import_color.KELVIN_STEP,
+      unit: "K",
+      def: import_color.KELVIN_COLD
+    }),
+    state(`${prefix}.color`, {
+      name: { en: "Colour #rrggbb (colour mode)", de: "Farbe #rrggbb (Farbmodus)" },
+      type: "string",
+      role: "level.color.rgb",
+      read: true,
+      write: true,
+      def: "#ffffff"
+    }),
+    state(`${prefix}.hue`, {
+      name: { en: "Hue (colour mode)", de: "Farbton (Farbmodus)" },
+      type: "number",
+      role: "level.color.hue",
+      read: true,
+      write: true,
+      min: 0,
+      max: 360,
+      unit: "\xB0",
+      def: 0
+    }),
+    state(`${prefix}.saturation`, {
+      name: { en: "Saturation (colour mode)", de: "S\xE4ttigung (Farbmodus)" },
+      type: "number",
+      role: "level.color.saturation",
+      read: true,
+      write: true,
+      min: 0,
+      max: 100,
+      unit: "%",
+      def: 100
+    }),
+    state(`${prefix}.speedUp`, {
+      name: { en: "Scene faster (S+)", de: "Szene schneller (S+)" },
+      type: "boolean",
+      role: "button",
+      read: false,
+      write: true,
+      def: false
+    }),
+    state(`${prefix}.speedDown`, {
+      name: { en: "Scene slower (S-)", de: "Szene langsamer (S-)" },
+      type: "boolean",
+      role: "button",
+      read: false,
+      write: true,
+      def: false
+    })
+  ];
+  if (!withDefaults) {
+    for (const definition of definitions) {
+      delete definition.obj.common.def;
+    }
+  }
+  return definitions;
+}
+const BASE_OBJECTS = [
   state("info.ip", {
     name: { en: "IP address of the gateway", de: "IP-Adresse des Gateways" },
     type: "string",
@@ -62,57 +185,7 @@ const OBJECT_DEFINITIONS = [
     write: false,
     def: ""
   }),
-  channel("light", { en: "Pool lights (all lamps of the gateway)", de: "Poolleuchten (alle Lampen des Gateways)" }),
-  state("light.on", {
-    name: { en: "On / off (DP 20)", de: "Ein / Aus (DP 20)" },
-    type: "boolean",
-    role: "switch.light",
-    read: true,
-    write: true,
-    def: false
-  }),
-  state("light.mode", {
-    name: { en: "Mode (DP 21)", de: "Modus (DP 21)" },
-    type: "string",
-    role: "text",
-    read: true,
-    write: true,
-    def: "white",
-    states: { white: "white", colour: "colour", scene: "scene", music: "music" }
-  }),
-  state("light.brightness", {
-    name: {
-      en: "Brightness (DP 22, in colour mode DP 24)",
-      de: "Helligkeit (DP 22, im Farbmodus DP 24)"
-    },
-    type: "number",
-    role: "level.dimmer",
-    read: true,
-    write: true,
-    min: 0,
-    max: 100,
-    unit: "%",
-    def: 100
-  }),
-  state("light.colorTemperature", {
-    name: { en: "Colour temperature (DP 23)", de: "Farbtemperatur (DP 23)" },
-    type: "number",
-    role: "level.color.temperature",
-    read: true,
-    write: true,
-    min: import_color.KELVIN_WARM,
-    max: import_color.KELVIN_COLD,
-    unit: "K",
-    def: import_color.KELVIN_WARM
-  }),
-  state("light.color", {
-    name: { en: "Colour #rrggbb (DP 24)", de: "Farbe #rrggbb (DP 24)" },
-    type: "string",
-    role: "level.color.rgb",
-    read: true,
-    write: true,
-    def: "#ffffff"
-  }),
+  ...controlStates("light", true),
   state("light.countdown", {
     name: { en: "Countdown until toggle (DP 26)", de: "Countdown bis zum Umschalten (DP 26)" },
     type: "number",
@@ -125,8 +198,8 @@ const OBJECT_DEFINITIONS = [
     def: 0
   }),
   channel("dp101", {
-    en: "Datapoint 101 (raw frames, zones and scenes)",
-    de: "Datenpunkt 101 (Roh-Frames, Zonen und Szenen)"
+    en: "Datapoint 101 (raw frames of zones, scenes and status)",
+    de: "Datenpunkt 101 (Roh-Frames f\xFCr Zonen, Szenen und Status)"
   }),
   state("dp101.raw", {
     name: { en: "Last frame as Base64 (writable)", de: "Letzter Frame als Base64 (schreibbar)" },
@@ -168,13 +241,65 @@ const OBJECT_DEFINITIONS = [
   }),
   channel("raw", { en: "Other datapoints", de: "Weitere Datenpunkte" })
 ];
+function lightChannel(zoneMode) {
+  return zoneMode === "selector" ? channel("light", {
+    en: "Pool lights (status of the gateway, commands to the zone in light.zone)",
+    de: "Poolleuchten (Status des Gateways, Befehle an die Zone in light.zone)"
+  }) : channel("light", {
+    en: "Pool lights (status of the gateway, commands to all zones)",
+    de: "Poolleuchten (Status des Gateways, Befehle an alle Zonen)"
+  });
+}
+function zoneSelectorState() {
+  const zoneStates = { 0: "all zones" };
+  for (let zone = 1; zone <= import_wl433.ZONE_COUNT; zone++) {
+    zoneStates[zone] = `zone ${zone}`;
+  }
+  return state("light.zone", {
+    name: {
+      en: "Zone for the commands of light.* (0 = all zones)",
+      de: "Zone f\xFCr die Befehle von light.* (0 = alle Zonen)"
+    },
+    type: "number",
+    role: "level",
+    read: true,
+    write: true,
+    min: 0,
+    max: import_wl433.ZONE_COUNT,
+    def: 0,
+    states: zoneStates
+  });
+}
+function zoneChannelObjects() {
+  const definitions = [
+    {
+      id: ZONES_FOLDER,
+      obj: {
+        type: "folder",
+        common: { name: { en: "Zones (last values sent)", de: "Zonen (zuletzt gesendete Werte)" } },
+        native: {}
+      }
+    }
+  ];
+  for (let zone = 1; zone <= import_wl433.ZONE_COUNT; zone++) {
+    definitions.push(channel(zoneChannelId(zone), { en: `Zone ${zone}`, de: `Zone ${zone}` }));
+    definitions.push(...controlStates(zoneChannelId(zone), false));
+  }
+  return definitions;
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  BASE_OBJECTS,
   COUNTDOWN_MAX,
   DP,
   DP101_HISTORY_LENGTH,
   LIGHT_MODES,
-  MAPPED_DPS,
-  OBJECT_DEFINITIONS
+  STATUS_ONLY_DPS,
+  ZONES_FOLDER,
+  ZONE_MODES,
+  lightChannel,
+  zoneChannelId,
+  zoneChannelObjects,
+  zoneSelectorState
 });
 //# sourceMappingURL=objects.js.map

@@ -7,7 +7,6 @@ const fake = require("./fake-wl433");
 
 const NS = "miboxer-wl433.0";
 
-
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function waitFor(check, timeout = 10000, what = "condition") {
     const end = Date.now() + timeout;
@@ -24,93 +23,127 @@ async function waitFor(check, timeout = 10000, what = "condition") {
     throw new Error(`timeout waiting for ${what}`);
 }
 
+/** DP 101 frame of a received command as hex without the checksum */
+function hexOf(dps) {
+    return Buffer.from(dps[101], "base64").subarray(0, 11).toString("hex").match(/../g).join(" ").toUpperCase();
+}
+
+/**
+ * Starts the simulator and the adapter for one suite. The test harness can start the adapter only once, so every zone
+ * mode gets its own suite.
+ *
+ * @param getHarness - harness factory of the suite
+ * @param zoneMode - "selector" or "channels"
+ */
+function setup(getHarness, zoneMode) {
+    const ctx = {};
+    ctx.st = async id => ctx.harness.states.getStateAsync(`${NS}.${id}`);
+    ctx.set = async (id, val) => ctx.harness.states.setStateAsync(`${NS}.${id}`, { val, ack: false });
+    ctx.framesSince = from => ctx.dev.received.slice(from).filter(dps => dps[101]).map(hexOf);
+    ctx.acked = async (id, val) => {
+        const s = await ctx.st(id);
+        return s?.ack === true && s.val === val;
+    };
+
+    before(async function () {
+        this.timeout(60000);
+        ctx.dev = await fake.start(6668, { reportDelayMs: 300 });
+        ctx.harness = getHarness();
+        await ctx.harness.changeAdapterConfig("miboxer-wl433", {
+            native: {
+                ip: "127.0.0.1",
+                deviceId: fake.DEVICE_ID,
+                localKey: fake.LOCAL_KEY, // the harness encrypts encryptedNative fields itself
+                protocolVersion: "3.3",
+                reconnectInterval: 5,
+                pollInterval: 0,
+                zoneMode,
+            },
+        });
+        await ctx.harness.startAdapterAndWait(true);
+    });
+
+    after(async function () {
+        this.timeout(20000);
+        if (ctx.harness?.isAdapterRunning()) {
+            await ctx.harness.stopAdapter();
+        }
+        if (ctx.dev) await ctx.dev.stop();
+    });
+    return ctx;
+}
+
 tests.integration(path.join(__dirname, "../.."), {
     allowedExitCodes: [11],
     defineAdditionalTests({ suite }) {
-        suite("E2E against simulated WL-433", getHarness => {
+        suite("E2E against simulated WL-433, zone mode selector", getHarness => {
+            const ctx = setup(getHarness, "selector");
+            const { st, set, framesSince, acked } = ctx;
             let harness;
             let dev;
-            const st = async id => harness.states.getStateAsync(`${NS}.${id}`);
-            const set = async (id, val) => harness.states.setStateAsync(`${NS}.${id}`, { val, ack: false });
-
-            before(async function () {
-                this.timeout(60000);
-                dev = await fake.start(6668);
-                harness = getHarness();
-                await harness.changeAdapterConfig("miboxer-wl433", {
-                    native: {
-                        ip: "127.0.0.1",
-                        deviceId: fake.DEVICE_ID,
-                        localKey: fake.LOCAL_KEY, // the harness encrypts encryptedNative fields itself
-                        protocolVersion: "3.3",
-                        reconnectInterval: 5,
-                        pollInterval: 0,
-                    },
-                });
-                await harness.startAdapterAndWait();
+            beforeEach(() => {
+                harness = ctx.harness;
+                dev = ctx.dev;
             });
 
-            after(async function () {
-                this.timeout(20000);
-                if (dev) await dev.stop();
-            });
-
-            it("connects and maps the initial datapoints", async function () {
+            it("connects, queries the DP 101 status and maps it", async function () {
                 this.timeout(20000);
                 await waitFor(async () => (await st("info.connection"))?.val === true, 15000, "info.connection");
-                await waitFor(async () => (await st("light.brightness"))?.val === 50, 5000, "brightness");
+                await waitFor(async () => (await st("dp101.hex"))?.val?.startsWith("44"), 5000, "status answer");
+                expect(framesSince(0)).to.include("43 00 00 80 00 00 00 00 00 80 80");
                 expect((await st("light.on")).val).to.equal(true);
-                expect((await st("light.on")).ack).to.equal(true);
                 expect((await st("light.mode")).val).to.equal("white");
-                expect((await st("light.colorTemperature")).val).to.equal(2700);
-                expect((await st("light.color")).val).to.equal("#ff0000");
-                expect((await st("light.countdown")).val).to.equal(0);
+                expect((await st("light.mode")).ack).to.equal(true);
+                expect((await st("light.colorTemperature")).val).to.equal(6500);
+                expect((await st("light.brightness")).val).to.equal(100);
+                expect((await st("light.hue")).val).to.equal(240);
+                expect((await st("light.saturation")).val).to.equal(0);
+                expect((await st("light.color")).val).to.equal("#ffffff");
+                expect((await st("light.scene")).val).to.equal(0);
+                expect((await st("light.zone")).val).to.equal(0);
                 expect((await st("info.ip")).val).to.equal("127.0.0.1");
-                expect((await st("dp101.raw")).val).to.equal("QwAAgAAAAAAAgIDD");
-                expect((await st("dp101.hex")).val).to.equal("43 00 00 80 00 00 00 00 00 80 80 C3");
                 expect((await st("dp101.checksumValid")).val).to.equal(true);
                 expect((await st("raw.dp102")).val).to.equal(7);
-                const obj = await harness.objects.getObjectAsync(`${NS}.raw.dp102`);
-                expect(obj.common.type).to.equal("number");
-                expect(obj.common.role).to.equal("level");
+                expect(await harness.objects.getObjectAsync(`${NS}.zones.zone1`)).to.equal(null);
             });
 
-            it("sets a colour (mode colour + DP 24) and acknowledges it", async function () {
-                this.timeout(10000);
-                const before = dev.received.length;
+            it("sets a colour with hue and saturation commands and acknowledges it from the status", async function () {
+                this.timeout(15000);
+                const from = dev.received.length;
                 await set("light.color", "#00ff00");
-                await waitFor(async () => (await st("light.color"))?.ack === true, 5000, "color ack");
-                expect(dev.received.length).to.equal(before + 1);
-                expect(dev.received.at(-1)).to.deep.equal({ 21: "colour", 24: "007803e803e8" });
-                expect((await st("light.color")).val).to.equal("#00ff00");
+                await waitFor(() => acked("light.color", "#00ff00"), 8000, "color ack");
+                expect(framesSince(from)).to.deep.equal([
+                    "41 00 00 0B 01 55 55 55 55 00 80",
+                    "41 00 00 0B 04 64 00 00 00 00 80",
+                ]);
                 expect((await st("light.mode")).val).to.equal("colour");
-                expect((await st("light.brightness")).val).to.equal(100);
+                expect((await st("light.hue")).val).to.equal(120);
+                expect((await st("light.saturation")).val).to.equal(100);
             });
 
-            it("dims in colour mode via the v part of DP 24 and merges rapid changes", async function () {
-                this.timeout(10000);
-                const before = dev.received.length;
+            it("sends only the last value of rapid brightness changes", async function () {
+                this.timeout(15000);
+                const from = dev.received.length;
                 await set("light.brightness", 10);
                 await set("light.brightness", 20);
                 await set("light.brightness", 40);
-                await waitFor(async () => {
-                    const s = await st("light.brightness");
-                    return s?.ack === true && s.val === 40;
-                }, 5000, "brightness ack");
-                await sleep(500);
-                expect(dev.received.length).to.equal(before + 1);
-                expect(dev.received.at(-1)).to.deep.equal({ 24: "007803e80190" });
-                expect((await st("light.color")).val).to.equal("#006600");
+                await waitFor(() => acked("light.brightness", 40), 8000, "brightness ack");
+                const frames = framesSince(from);
+                expect(frames.at(-1)).to.equal("41 00 00 0B 02 28 00 00 00 00 80");
+                expect(frames.length).to.be.lessThan(3);
             });
 
-            it("sets the colour temperature (mode white + DP 23)", async function () {
-                this.timeout(10000);
-                await set("light.colorTemperature", 4600);
-                await waitFor(async () => (await st("light.colorTemperature"))?.ack === true, 5000, "ct ack");
-                expect(dev.received.at(-1)).to.deep.equal({ 21: "white", 23: 500 });
-                expect((await st("light.colorTemperature")).val).to.equal(4600);
+            it("switches to white mode before setting the colour temperature", async function () {
+                this.timeout(15000);
+                const from = dev.received.length;
+                await set("light.colorTemperature", 4500);
+                await waitFor(() => acked("light.colorTemperature", 4500), 8000, "ct ack");
+                expect(framesSince(from)).to.deep.equal([
+                    "41 00 00 0B 06 06 00 00 00 00 80",
+                    "41 00 00 0B 03 12 00 00 00 00 80",
+                ]);
                 expect((await st("light.mode")).val).to.equal("white");
-                expect((await st("light.brightness")).val).to.equal(50);
+                expect((await st("light.brightness")).val).to.equal(100);
             });
 
             it("rejects an invalid colour without sending", async function () {
@@ -121,32 +154,83 @@ tests.integration(path.join(__dirname, "../.."), {
                 expect(dev.received.length).to.equal(before);
             });
 
-            it("sends a DP 101 frame from hex with checksum, logs tx and rx in the history", async function () {
-                this.timeout(10000);
-                await set("dp101.hex", "42 00 00 00 02 01 00 01 00 0b 01");
-                await waitFor(async () => (await st("dp101.raw"))?.val === "RAAAAAABAAEACwFS", 5000, "dp101 answer");
-                expect(dev.received.at(-1)).to.deep.equal({ 101: "QgAAAAIBAAEACwFS" });
-                await sleep(300);
-                // the answer of the gateway must survive the confirmation of the sent frame
-                expect((await st("dp101.raw")).val).to.equal("RAAAAAABAAEACwFS");
-                expect((await st("dp101.raw")).ack).to.equal(true);
-                const history = JSON.parse((await st("dp101.history")).val);
-                const last2 = history.slice(-2).map(e => `${e.dir}:${e.base64}`);
-                expect(last2).to.deep.equal(["tx:QgAAAAIBAAEACwFS", "rx:RAAAAAABAAEACwFS"]);
+            it("selects a scene", async function () {
+                this.timeout(15000);
+                const from = dev.received.length;
+                await set("light.scene", 3);
+                await waitFor(() => acked("light.scene", 3), 8000, "scene ack");
+                expect(framesSince(from)).to.deep.equal(["41 00 00 0B 05 03 00 00 00 00 80"]);
+                expect((await st("light.mode")).val).to.equal("scene");
             });
 
-            it("processes status pushes of the gateway (e.g. app via cloud)", async function () {
+            it("presses the speed buttons without waiting for a status", async function () {
                 this.timeout(10000);
-                dev.push({ 20: false });
-                await waitFor(async () => (await st("light.on"))?.val === false, 5000, "push");
-                expect((await st("light.on")).ack).to.equal(true);
+                const from = dev.received.length;
+                await set("light.speedUp", true);
+                await waitFor(() => framesSince(from).length === 1, 5000, "speed frame");
+                expect(framesSince(from)).to.deep.equal(["41 00 00 0B 06 04 00 00 00 00 80"]);
+                expect(dev.light.speed).to.equal(6);
             });
 
-            it("switches on with brightness > 0 like a dimmer", async function () {
-                this.timeout(10000);
+            it("switches off and on again with brightness > 0 like a dimmer", async function () {
+                this.timeout(15000);
+                let from = dev.received.length;
+                await set("light.on", false);
+                await waitFor(() => acked("light.on", false), 8000, "off");
+                expect(framesSince(from)).to.deep.equal(["41 00 00 0B 06 02 00 00 00 00 80"]);
+                from = dev.received.length;
                 await set("light.brightness", 80);
-                await waitFor(async () => (await st("light.on"))?.val === true, 5000, "on via dimmer");
-                expect(dev.received.at(-1)).to.deep.equal({ 20: true, 22: 800 });
+                await waitFor(() => acked("light.brightness", 80), 8000, "on via dimmer");
+                expect(framesSince(from)).to.deep.equal([
+                    "41 00 00 0B 06 01 00 00 00 00 80",
+                    "41 00 00 0B 02 50 00 00 00 00 80",
+                ]);
+                expect((await st("light.on")).val).to.equal(true);
+                expect((await st("light.mode")).val).to.equal("scene");
+            });
+
+            it("processes changes made with the app", async function () {
+                this.timeout(10000);
+                dev.appCommand([0x41, 0, 0, 0x0b, 0x01, 0x10, 0x10, 0x10, 0x10, 0x01, 0x80]);
+                await waitFor(() => acked("light.hue", 23), 5000, "app change");
+                expect((await st("light.mode")).val).to.equal("colour");
+            });
+
+            it("sends the commands of light.* to the zone selected in light.zone", async function () {
+                this.timeout(15000);
+                await set("light.zone", 2);
+                await waitFor(() => acked("light.zone", 2), 5000, "zone ack");
+                const from = dev.received.length;
+                await set("light.on", false);
+                await waitFor(() => acked("light.on", false), 8000, "zone off");
+                expect(framesSince(from)).to.deep.equal(["41 00 00 0B 06 02 00 00 00 02 80"]);
+                await set("light.zone", 0);
+                await waitFor(() => acked("light.zone", 0), 5000, "zone reset");
+            });
+
+            it("sends a DP 101 frame from hex and logs it in the history", async function () {
+                this.timeout(10000);
+                await set("dp101.hex", "43 00 00 80 00 00 00 00 00 80 80");
+                await waitFor(async () => {
+                    const history = JSON.parse((await st("dp101.history")).val);
+                    return history.some(entry => entry.dir === "tx" && entry.base64 === "QwAAgAAAAAAAgIDD");
+                }, 5000, "history tx");
+                // the answer of the gateway must survive the confirmation of the sent frame
+                await sleep(300);
+                expect((await st("dp101.hex")).val.startsWith("44")).to.equal(true);
+            });
+
+            it("requests the status and gives up when the gateway does not confirm a command", async function () {
+                this.timeout(20000);
+                dev.ignoreFrames = true;
+                const from = dev.received.length;
+                await set("light.brightness", 55);
+                await waitFor(() => framesSince(from).includes("43 00 00 80 00 00 00 00 00 80 80"), 9000, "query");
+                await sleep(3500);
+                const brightness = await st("light.brightness");
+                expect(brightness.val).to.equal(55);
+                expect(brightness.ack).to.equal(false);
+                dev.ignoreFrames = false;
             });
 
             it("writes unknown datapoints via raw.dp<n> with the right type", async function () {
@@ -180,6 +264,50 @@ tests.integration(path.join(__dirname, "../.."), {
                 await harness.stopAdapter();
                 await waitFor(() => dev.sockets.size === 0, 5000, "socket closed");
             });
+        });
+
+        suite("E2E against simulated WL-433, zone mode channels", getHarness => {
+            const ctx = setup(getHarness, "channels");
+            const { st, set, framesSince, acked } = ctx;
+            let harness;
+            let dev;
+            beforeEach(() => {
+                harness = ctx.harness;
+                dev = ctx.dev;
+            });
+
+            it("creates one channel per zone in the zone mode 'channels'", async function () {
+                this.timeout(20000);
+                await waitFor(async () => (await st("dp101.hex"))?.val?.startsWith("44"), 5000, "status answer");
+                expect(await harness.objects.getObjectAsync(`${NS}.light.zone`)).to.equal(null);
+                expect((await harness.objects.getObjectAsync(`${NS}.zones.zone8.brightness`))?.common.role).to.equal(
+                    "level.dimmer",
+                );
+            });
+
+            it("controls a single zone and shows the confirmed values in its channel", async function () {
+                this.timeout(15000);
+                await sleep(1000);
+                const from = dev.received.length;
+                await set("zones.zone2.brightness", 30);
+                await waitFor(() => acked("zones.zone2.brightness", 30), 8000, "zone brightness ack");
+                expect(framesSince(from)).to.deep.equal([
+                    "41 00 00 0B 06 01 00 00 00 02 80",
+                    "41 00 00 0B 02 1E 00 00 00 02 80",
+                ]);
+                expect(await acked("zones.zone2.on", true)).to.equal(true);
+                expect((await st("zones.zone3.brightness"))?.val ?? null).to.equal(null);
+            });
+
+            it("updates every zone channel with a command of light.* (all zones)", async function () {
+                this.timeout(15000);
+                const from = dev.received.length;
+                await set("light.brightness", 60);
+                await waitFor(() => acked("zones.zone5.brightness", 60), 8000, "all zones");
+                expect(framesSince(from)).to.deep.equal(["41 00 00 0B 02 3C 00 00 00 00 80"]);
+                expect(await acked("zones.zone2.brightness", 60)).to.equal(true);
+            });
+
         });
     },
 });

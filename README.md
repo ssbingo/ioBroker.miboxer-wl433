@@ -42,11 +42,19 @@ The adapter talks the **Tuya LAN protocol 3.3** (TCP port 6668, AES encrypted wi
 with the gateway, based on the proven [tuyapi](https://github.com/codetheweb/tuyapi) library (also used by
 ioBroker.tuya). Protocol versions 3.1, 3.4 and 3.5 are supported as well, in case a firmware update changes it.
 
+Lamps, zones and scenes are controlled with the gateway's own commands in the vendor specific **datapoint 101** — the
+same commands the MiBoxer app sends. The gateway reports its status the same way; the adapter also asks for it when it
+connects and at every status refresh.
+
 ```text
 ioBroker (this adapter) ──LAN: Tuya protocol 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-The background research (protocol analysis, sources, test plan) is available in German:
+**User manual** with every step explained for beginners (installation, settings, zones, examples, troubleshooting):
+[English](doc/Manual_miboxer-wl433.md) ([PDF](doc/Manual_miboxer-wl433.pdf)) ·
+[Deutsch](doc/Handbuch_miboxer-wl433.md) ([PDF](doc/Handbuch_miboxer-wl433.pdf)).
+
+The background research (protocol analysis, sources, test plan, decoded datapoint 101) is available in German:
 [doc/Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](doc/Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md)
 ([PDF](doc/Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). A beginner's guide for linking the lamps to the
 gateway: [doc/Anleitung_PW01_mit_WL-433_verbinden.pdf](doc/Anleitung_PW01_mit_WL-433_verbinden.pdf).
@@ -55,7 +63,7 @@ gateway: [doc/Anleitung_PW01_mit_WL-433_verbinden.pdf](doc/Anleitung_PW01_mit_WL
 
 | Device | Role | Status |
 | --- | --- | --- |
-| MiBoxer WL-433 LoRa 433 MHz gateway | Required, the adapter connects to it | Tuya protocol 3.3 confirmed by a user with identical hardware |
+| MiBoxer WL-433 LoRa 433 MHz gateway | Required, the adapter connects to it | Tested with a real gateway (Tuya protocol 3.3, datapoint 101) |
 | MiBoxer PW01 (27 W RGB+CCT PAR56) | Pool light, linked to the gateway | Target device |
 | MiBoxer PW02 (18 W RGB+CCT PAR56) | Pool light, linked to the gateway | Same product family, expected to work |
 | Other MiBoxer LoRa 433 MHz lamps (UW01, UW02, UW03, RD-9L) | Lamps linked to the gateway | Untested |
@@ -71,7 +79,8 @@ gateway: [doc/Anleitung_PW01_mit_WL-433_verbinden.pdf](doc/Anleitung_PW01_mit_WL
    ([PDF](doc/Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
 3. The gateway is reachable from ioBroker (same network). A DHCP reservation for the gateway is recommended; if no IP
    address is configured, the adapter finds the gateway via its UDP broadcasts (ports 6666/6667).
-4. **Tuya devices accept only one local connection.** Close the MiBoxer app on phones in the same network and do not
+4. **Tuya devices usually accept only one local connection.** In a test the MiBoxer app and the adapter were connected
+   at the same time, but if the connection keeps failing, close the app on phones in the same network and do not
    control the gateway with other local integrations (ioBroker.tuya, Home Assistant, tinytuya) at the same time.
 
 ### Configuration
@@ -85,50 +94,77 @@ gateway: [doc/Anleitung_PW01_mit_WL-433_verbinden.pdf](doc/Anleitung_PW01_mit_WL
 | Search gateway in the local network | Button: finds the gateway by its device ID and fills in IP address and protocol version. Without device ID it lists all Tuya devices found |
 | Reconnect delay | Seconds until a lost or failed connection is retried (default 30) |
 | Status refresh interval | Seconds between full status requests (default 60, 0 = only use the updates pushed by the gateway) |
+| Zone control | *Zone selector* (default) or *one channel per zone*, see [Zones](#zones) |
+
+### Zones
+
+The gateway controls up to 8 zones (like the FUT086 remote). Every command can go to one zone or to all zones, but the
+gateway reports **only one status for all lamps: the last setting, whichever zone it was sent to**. The MiBoxer app
+does not show a separate status per zone either. The setting *Zone control* offers two variants:
+
+| Variant | States | Suitable for |
+| --- | --- | --- |
+| **Zone selector** (default) | `light.*` shows the status of the gateway. `light.zone` (0 = all zones, 1–8) selects the zone the commands of `light.*` go to. | Most users: every state shows what the gateway reports |
+| **One channel per zone** | `light.*` shows the status of the gateway and sends to all zones. In addition `zones.zone1` … `zones.zone8` control each zone separately. A zone channel shows the last values sent to this zone and confirmed by the gateway; it stays empty until something was sent to the zone. | Scripts and visualisations that address zones directly |
+
+When the setting is changed, the states of the other variant are deleted.
 
 ### States
 
-| State | Tuya DP | Description |
+| State | Description |
+| --- | --- |
+| `info.connection` | Connection to the gateway |
+| `info.ip` | IP address used for the gateway |
+| `light.on` | On / off |
+| `light.mode` | `white`, `colour` or `scene` — writing it switches the mode (colour mode with the last hue, scene mode with the last scene) |
+| `light.brightness` | Brightness 1–100 % of the current mode. 0 switches off, a value above 0 switches on |
+| `light.colorTemperature` | Colour temperature 2700–6500 K in steps of 100 K (switches to white mode) |
+| `light.color` | Colour as `#rrggbb` at full brightness (switches to colour mode). Writing sets hue and saturation, the brightness of the RGB value is ignored — use `light.brightness` |
+| `light.hue` | Hue 0–360° (switches to colour mode) |
+| `light.saturation` | Saturation 0–100 % (switches to colour mode) |
+| `light.scene` | Scene 1–9 (M1–M9 in the app), 0 = no scene. Writing 1–9 starts the scene |
+| `light.speedUp` / `light.speedDown` | Buttons S+ / S- of the app: scene faster / slower. The gateway does not report the speed |
+| `light.countdown` | Seconds until the gateway toggles the lamps (0 = off, standard datapoint 26) |
+| `light.zone` | Only with the zone selector: zone of the `light.*` commands, 0 = all zones, 1–8 |
+| `zones.zone<n>.*` | Only with one channel per zone: `on`, `mode`, `brightness`, `colorTemperature`, `color`, `hue`, `saturation`, `scene`, `speedUp`, `speedDown` for zone n |
+| `dp101.raw` | Last datapoint 101 frame as Base64 — writing sends the value unchanged |
+| `dp101.hex` | Last datapoint 101 frame as hex bytes — writing sends the frame, the checksum is added or corrected automatically |
+| `dp101.checksumValid` | Checksum of the last frame is valid |
+| `dp101.history` | JSON list of the last 50 frames (`rx` = received, `tx` = sent) with time stamp; repeated identical status answers are not added |
+| `raw.dp<n>` | Every further datapoint the gateway reports is created automatically (writable) |
+
+Values that need a mode or the lights switched on are sent like the MiBoxer app does: e.g. a colour temperature in
+colour mode first switches to white mode, a brightness while the lights are off first switches them on. Rapid changes
+(e.g. from a slider) are combined, only the last value is sent. Commands are only accepted while the gateway is
+connected. A command counts as executed when the next status of the gateway shows its values (about 2.5 s later);
+until then the state is not acknowledged.
+
+### Datapoint 101 — protocol
+
+The WL-433 transports lamps, zones and scenes in the vendor specific datapoint 101: 12-byte frames, Base64 encoded, the
+last byte is the 8-bit sum of bytes 0–10. The format was decoded on 2026-09-22 from the status frames of a real gateway
+and the commands the MiBoxer app writes to its Android log:
+
+| Frame | Bytes (hex) | Meaning |
 | --- | --- | --- |
-| `info.connection` | – | Connection to the gateway |
-| `info.ip` | – | IP address used for the gateway |
-| `light.on` | 20 | Switch all lamps on/off |
-| `light.mode` | 21 | `white`, `colour`, `scene` or `music` |
-| `light.brightness` | 22 / 24 | Brightness 0–100 %. In colour mode the brightness of the colour (DP 24) is changed, otherwise the white brightness (DP 22). 0 switches off, a value above 0 switches on |
-| `light.colorTemperature` | 23 | Colour temperature 2700–6500 K (switches to white mode) |
-| `light.color` | 24 | Colour as `#rrggbb` (switches to colour mode) |
-| `light.countdown` | 26 | Seconds until the gateway toggles the lamps (0 = off) |
-| `dp101.raw` | 101 | Last DP 101 frame as Base64 — writing sends the value unchanged |
-| `dp101.hex` | 101 | Last DP 101 frame as hex bytes — writing sends the frame, the checksum is added or corrected automatically |
-| `dp101.checksumValid` | 101 | Checksum of the last frame is valid |
-| `dp101.history` | 101 | JSON list of the last 50 frames (`rx` = received, `tx` = sent) with time stamp |
-| `raw.dp<n>` | n | Every further datapoint the gateway reports is created automatically (writable) |
+| Command (app / adapter → gateway) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` command: `01` hue 0–255 (value in bytes 5–8, switches to colour mode), `02` brightness 1–100 %, `03` colour temperature 0–38 (2700 K + 100 K per step), `04` saturation 0–100 %, `05` scene 1–9, `06` key (`01` on, `02` off, `03` S-, `04` S+, `06` white mode); `zz` zone: `00` all, `01`–`08` |
+| Status query | `43 00 00 80 00 00 00 00 00 80 80 C3` | the gateway answers with a `44` status frame |
+| Status (gateway → app) | `42`/`44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` change report (about 2.5 s after the last change), `44` answer to the query; `mm` mode: `00` off, `01` colour, `02` white, `03`–`0B` scene 1–9; `hh` hue, `tt` colour temperature step, `bb` brightness, `ss` saturation (0 in white mode). The zone is not part of the status |
 
-Rapid changes (e.g. from a slider) are combined into one command. Commands are only accepted while the gateway is
-connected.
+The standard datapoints 20–23 are derived by the gateway from these commands; the adapter only uses datapoint 20
+(on/off, reported earlier than the status) and follows the datapoint 101 status for everything else. Writing the Tuya
+colour datapoint 24 does not change the colour of the lamps — the MiBoxer app does not use it either.
 
-### Datapoint 101 — zones and scenes
-
-The WL-433 transports its zone and scene commands in the vendor specific datapoint 101: 12-byte binary frames,
-Base64 encoded, the last byte is the 8-bit sum of bytes 0–10. The meaning of the other bytes is **not decoded yet**.
-Until then the adapter offers raw access:
-
-- received frames are shown in `dp101.raw` / `dp101.hex` and logged in `dp101.history`,
-- frames can be sent via `dp101.hex` — 11 bytes are enough, the checksum is appended automatically,
-  e.g. `43 00 00 80 00 00 00 00 00 80 80`.
-
-**Help wanted:** record one action at a time in the MiBoxer app (per zone: on, off, colour, scene 1–9) and note the
-frames from `dp101.history`. With enough recordings the frames can be decoded and dedicated zone and scene states
-added. The procedure is described in chapter 6 of the protocol analysis.
+Raw access for your own experiments: `dp101.hex` accepts 11 bytes (the checksum is appended), e.g.
+`43 00 00 80 00 00 00 00 00 80 80` requests the status.
 
 ### Limitations
 
-- The standard datapoints 20–26 act on all lamps of the gateway (possibly only on the zone selected in the app).
-  Separate zones and scenes will follow once datapoint 101 is decoded.
+- The gateway reports one status for all lamps (the last setting) and not the status of each zone — see [Zones](#zones).
+- The speed of a scene (S+ / S-) is not reported by the gateway.
+- Whether a lamp actually received a command via LoRa cannot be seen: the status comes from the gateway.
 - The gateway still reports its status to the Tuya cloud. Blocking its internet access completely may make it
   unreliable.
-- This first version was tested against a simulation of the gateway (Tuya protocol 3.3). Feedback with real hardware
-  is very welcome.
 
 ### Logging and debugging
 
@@ -137,24 +173,25 @@ The adapter logs according to a fixed concept, so a log is meaningful for troubl
 | Level | What is logged |
 | --- | --- |
 | error | Configuration errors that stop the adapter (device ID missing, local key not 16 characters) |
-| warn | Problems you have to act on — reported once and repeated only at debug level until they are resolved: gateway refuses connections, data that cannot be decoded (wrong local key), commands that were not executed or not confirmed, unexpected datapoint values |
-| info | Milestones: configuration summary at start, gateway found, connected, connection lost, connection stable again |
-| debug | Every step with its inputs, decisions and durations: state change → datapoint translation → command queue → sending → confirmation, every received datapoint and the state it updates, discovery, status refresh. Commands (`#12`) and connection attempts (`Attempt #3`) are numbered, so all lines of one command can be followed |
+| warn | Problems you have to act on — reported once and repeated only at debug level until they are resolved: gateway refuses connections, data that cannot be decoded (wrong local key), commands the gateway did not confirm, status queries that are not answered, unexpected datapoint values or status frames |
+| info | Milestones: configuration summary at start, gateway found, connected, connection lost, connection stable again, objects of the other zone variant removed |
+| debug | Every step with its inputs, decisions and durations: state change → translation into datapoint 101 frames (with the reason for extra frames such as "switch on first") → command queue → sending → confirmation by the status (or which value is still missing), every received datapoint and status and the states it updates, status queries, discovery. Commands (`#12`) and connection attempts (`Attempt #3`) are numbered, so all lines of one command can be followed |
 | silly | Additionally the protocol trace of the tuyapi library (packets, ping/pong) with the tag `[tuyapi]` |
 
 Every message starts with a component tag: `[cfg]` configuration, `[conn]` connection, `[rx]` gateway → states,
-`[cmd]` states → commands, `[queue]` command queue, `[poll]` status refresh, `[disc]` discovery, `[dp101]` raw frames,
-`[unload]` shutdown, `[tuyapi]` library trace. The local key and the session keys never appear in the log — the
-configuration summary only shows the length of the key.
+`[cmd]` states → commands, `[queue]` command queue, `[poll]` status refresh and status query, `[disc]` discovery,
+`[dp101]` raw frames, `[unload]` shutdown, `[tuyapi]` library trace. The local key and the session keys never appear
+in the log — the configuration summary only shows the length of the key.
 
 To change the level: Admin → **Instances** → expert mode → log level of `miboxer-wl433.0` → `debug` (or `silly` for
-the protocol trace; restart the instance afterwards). Please attach a debug log when you report a problem.
+the protocol trace; restart the instance afterwards). Please attach a debug log and the content of `dp101.history`
+when you report a problem.
 
 ## Development
 
 `npm run build` compiles the TypeScript sources, `npm test` runs the unit and package tests. `npm run test:e2e` runs
 the adapter in a temporary ioBroker installation against a simulated WL-433 (Tuya protocol 3.3 on `127.0.0.1:6668`,
-UDP broadcasts on port 6667) — these ports must be free.
+UDP broadcasts on port 6667, datapoint 101 commands and status like the real gateway) — these ports must be free.
 
 Local test system with [dev-server](https://github.com/ioBroker/dev-server) (admin on port 8091):
 
@@ -192,6 +229,13 @@ Credits: the checksum of datapoint 101 and the first published frames come from 
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.1.0 (2026-09-22)
+
+- (ssbingo) Datapoint 101 decoded: lamps, zones and scenes are now controlled with the gateway's own commands (the colour could not be set before), the status is read from datapoint 101 and requested actively
+- (ssbingo) New states: hue, saturation, scene M1–M9, buttons S+ / S-; zones selectable in the settings as zone selector (`light.zone`) or one channel per zone
+- (ssbingo) Commands are confirmed by the status of the gateway, a warning is logged if the gateway does not confirm them; detailed debug output for every step
+- (ssbingo) German and English user manual for beginners
 
 ### 0.0.1 (2026-09-21)
 

@@ -20,82 +20,133 @@ Dit is een **onofficieel communityproject**. Het is **op geen enkele manier verb
 
 ## Werking
 
-In de WL-433 zit een Tuya-wifimodule. In het lokale netwerk is de gateway **één** Tuya-apparaat — alle gekoppelde lampen worden via dit apparaat bediend, de gateway stuurt de commando's via LoRa (433 MHz) naar de lampen. De adapter spreekt het **Tuya-LAN-protocol 3.3** (TCP-poort 6668, AES-versleuteld met de lokale sleutel) rechtstreeks met de gateway, op basis van de beproefde bibliotheek [tuyapi](https://github.com/codetheweb/tuyapi) (ook gebruikt door ioBroker.tuya). Protocolversies 3.1, 3.4 en 3.5 worden ook ondersteund, voor het geval een firmware-update die wijzigt.
+In de WL-433 zit een Tuya-wifimodule. In het lokale netwerk is de gateway **één** Tuya-apparaat: alle gekoppelde lampen worden via dit ene apparaat bestuurd en de gateway stuurt de opdrachten via LoRa (433 MHz) naar de lampen. De adapter spreekt het **Tuya-LAN-protocol 3.3** (TCP-poort 6668, AES-versleuteld met de local key) rechtstreeks met de gateway, op basis van de beproefde bibliotheek [tuyapi](https://github.com/codetheweb/tuyapi) (ook gebruikt door ioBroker.tuya). De protocolversies 3.1, 3.4 en 3.5 worden ook ondersteund, voor het geval een firmware-update die wijzigt.
+
+Lampen, zones en scènes worden bestuurd met de eigen opdrachten van de gateway in het fabrikantspecifieke **datapunt 101** — dezelfde opdrachten die de MiBoxer-app verstuurt. De gateway meldt zijn status op dezelfde manier; de adapter vraagt die bovendien op bij het verbinden en bij elke statusverversing.
 
 ```text
 ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-Het achterliggende onderzoek (protocolanalyse, bronnen, testplan) is in het Duits beschikbaar: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Handleiding voor het koppelen van de lampen aan de gateway: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+**Handleiding** waarin elke stap voor beginners wordt uitgelegd (installatie, instellingen, zones, voorbeelden, probleemoplossing): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
+
+Achtergrondonderzoek (protocolanalyse, bronnen, testplan, ontcijferd datapunt 101), in het Duits: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Handleiding voor het koppelen van de lampen aan de gateway: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
 
 ## Ondersteunde hardware
 
 | Apparaat | Rol | Status |
 | --- | --- | --- |
-| MiBoxer WL-433 | Vereist, de adapter maakt er verbinding mee | Tuya-protocol 3.3 bevestigd door een gebruiker met identieke hardware |
+| MiBoxer WL-433 | Vereist, de adapter maakt er verbinding mee | Getest met een echte gateway (Tuya-protocol 3.3, datapunt 101) |
 | MiBoxer PW01 (27 W RGB+CCT PAR56) | Lamp, gekoppeld aan de gateway | Doelapparaat |
 | MiBoxer PW02 (18 W RGB+CCT PAR56) | Lamp, gekoppeld aan de gateway | Zelfde productfamilie, zou moeten werken |
 | MiBoxer UW01, UW02, UW03, RD-9L | Lamp, gekoppeld aan de gateway | Niet getest |
 
 ## Vereisten
 
-1. De gateway is ingesteld in de MiBoxer-app en de lampen zijn eraan gekoppeld.
-2. **Apparaat-ID en lokale sleutel** van de gateway. De fabrikant ondersteunt het Tuya-ontwikkelaarsplatform niet voor de WL-433, maar de MiBoxer-app schrijft beide waarden naar zijn debuglogboek: lees op Android het logboek met een logcat-viewer zoals *LogFox* terwijl de app start en de gateway bedient. **De lokale sleutel verandert telkens wanneer de gateway opnieuw wordt gekoppeld** — dan moet hij opnieuw worden uitgelezen en ingevoerd.
+1. De gateway is ingericht in de MiBoxer-app en de lampen zijn eraan gekoppeld.
+2. **Apparaat-ID en local key** van de gateway. De fabrikant ondersteunt het Tuya-ontwikkelaarsplatform niet voor de WL-433, maar de MiBoxer-app schrijft beide waarden naar zijn debuglog: lees op Android het log met een logcat-viewer zoals *LogFox* terwijl de app start en de gateway bestuurt. **De local key verandert telkens wanneer de gateway opnieuw wordt gekoppeld** — dan moet hij opnieuw worden uitgelezen en ingevoerd. Stap-voor-stapgids voor beginners (in het Duits, voor Android, iPhone en iPad): [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
 3. De gateway is bereikbaar vanuit ioBroker (hetzelfde netwerk). Een DHCP-reservering wordt aanbevolen; zonder ingesteld IP-adres vindt de adapter de gateway via zijn UDP-broadcasts (poorten 6666/6667).
-4. **Tuya-apparaten accepteren slechts één lokale verbinding.** Sluit de MiBoxer-app op telefoons in hetzelfde netwerk en bedien de gateway niet tegelijk met andere lokale integraties (ioBroker.tuya, Home Assistant, tinytuya).
+4. **Tuya-apparaten accepteren meestal maar één lokale verbinding.** Bij een test waren de MiBoxer-app en de adapter tegelijk verbonden; mislukt de verbinding echter steeds weer, sluit dan de app op telefoons in hetzelfde netwerk en bestuur de gateway niet tegelijk met andere lokale integraties (ioBroker.tuya, Home Assistant, tinytuya).
 
 ## Configuratie
 
 | Instelling | Beschrijving |
 | --- | --- |
 | Apparaat-ID | Tuya-apparaat-ID van de WL-433-gateway |
-| Lokale sleutel | Tuya-lokale sleutel van 16 tekens (versleuteld opgeslagen) |
+| Local key | Tuya-local-key van 16 tekens (versleuteld opgeslagen) |
 | IP-adres van de gateway | Leeg laten om de gateway automatisch in het lokale netwerk te vinden |
-| Tuya-protocolversie | 3.3 voor de WL-433 (3.1, 3.4 en 3.5 selecteerbaar) |
+| Tuya-protocolversie | 3.3 voor de WL-433 (3.1, 3.4 en 3.5 kiesbaar) |
 | Gateway zoeken in het lokale netwerk | Knop: vindt de gateway aan de hand van de apparaat-ID en vult IP-adres en protocolversie in. Zonder apparaat-ID worden alle gevonden Tuya-apparaten weergegeven |
-| Vertraging voor opnieuw verbinden | Seconden tot een nieuwe verbindingspoging (standaard 30) |
-| Interval voor statusvernieuwing | Seconden tussen volledige statusopvragingen (standaard 60, 0 = alleen door de gateway verstuurde updates) |
+| Wachttijd voor opnieuw verbinden | Seconden tot een verloren of mislukte verbinding opnieuw wordt geprobeerd (standaard 30) |
+| Interval voor statusverversing | Seconden tussen volledige statusopvragingen (standaard 60, 0 = alleen de door de gateway verstuurde updates) |
+| Zonebesturing | *Zonekeuze* (standaard) of *één kanaal per zone*, zie [Zones](#zones) |
+
+## Zones
+
+De gateway bestuurt tot 8 zones (zoals de afstandsbediening FUT086). Elke opdracht kan naar één zone of naar alle zones gaan, maar de gateway meldt **slechts één status voor alle lampen: de laatste instelling, ongeacht naar welke zone die is gestuurd**. Ook de MiBoxer-app toont geen aparte status per zone. De instelling *Zonebesturing* biedt twee varianten:
+
+| Variant | Datapunten | Geschikt voor |
+| --- | --- | --- |
+| **Zonekeuze (standaard)** | `light.*` toont de status van de gateway. `light.zone` (0 = alle zones, 1–8) bepaalt naar welke zone de opdrachten van `light.*` gaan. | De meeste gebruikers: elk datapunt toont wat de gateway meldt |
+| **Eén kanaal per zone** | `light.*` toont de status van de gateway en stuurt naar alle zones. Daarnaast besturen `zones.zone1` … `zones.zone8` elke zone afzonderlijk. Een zonekanaal toont de laatste waarden die naar deze zone zijn gestuurd en door de gateway zijn bevestigd; het blijft leeg tot er iets naar de zone is gestuurd. | Scripts en visualisaties die zones rechtstreeks aansturen |
+
+Als de instelling wordt gewijzigd, worden de datapunten van de andere variant verwijderd.
 
 ## Datapunten
 
-| State | Tuya DP | Beschrijving |
+| State | Beschrijving |
+| --- | --- |
+| `info.connection` | Verbinding met de gateway |
+| `info.ip` | Gebruikt IP-adres van de gateway |
+| `light.on` | Aan / uit |
+| `light.mode` | `white`, `colour` of `scene` — schrijven wisselt de modus (kleurmodus met de laatste tint, scènemodus met de laatste scène) |
+| `light.brightness` | Helderheid 1–100 % van de huidige modus. 0 schakelt uit, een waarde boven 0 schakelt in |
+| `light.colorTemperature` | Kleurtemperatuur 2700–6500 K in stappen van 100 K (schakelt naar de witmodus) |
+| `light.color` | Kleur als `#rrggbb` bij volle helderheid (schakelt naar de kleurmodus). Schrijven stelt tint en verzadiging in, de helderheid van de RGB-waarde wordt genegeerd — gebruik daarvoor `light.brightness` |
+| `light.hue` | Tint 0–360° (schakelt naar de kleurmodus) |
+| `light.saturation` | Verzadiging 0–100 % (schakelt naar de kleurmodus) |
+| `light.scene` | Scène 1–9 (M1–M9 in de app), 0 = geen scène. Schrijven van 1–9 start de scène |
+| `light.speedUp` / `light.speedDown` | Knoppen S+ / S- van de app: scène sneller / langzamer. De gateway meldt de snelheid niet |
+| `light.countdown` | Seconden tot de gateway de lampen omschakelt (0 = uit, standaarddatapunt 26) |
+| `light.zone` | Alleen bij de zonekeuze: zone van de `light.*`-opdrachten, 0 = alle zones, 1–8 |
+| `zones.zone<n>.*` | Alleen bij één kanaal per zone: `on`, `mode`, `brightness`, `colorTemperature`, `color`, `hue`, `saturation`, `scene`, `speedUp`, `speedDown` voor zone n |
+| `dp101.raw` | Laatste frame van datapunt 101 als Base64 — schrijven verstuurt de waarde ongewijzigd |
+| `dp101.hex` | Laatste frame van datapunt 101 als hex-bytes — schrijven verstuurt het frame, de controlesom wordt automatisch toegevoegd of gecorrigeerd |
+| `dp101.checksumValid` | Controlesom van het laatste frame is geldig |
+| `dp101.history` | JSON-lijst van de laatste 50 frames (`rx` = ontvangen, `tx` = verzonden) met tijdstempel; herhaalde identieke statusantwoorden worden niet toegevoegd |
+| `raw.dp<n>` | Elk verder datapunt dat de gateway meldt, wordt automatisch aangemaakt (schrijfbaar) |
+
+Waarden die een modus of ingeschakelde lampen nodig hebben, verstuurt de adapter zoals de MiBoxer-app: een kleurtemperatuur in kleurmodus schakelt bijvoorbeeld eerst naar de witmodus, een helderheid bij uitgeschakelde lampen schakelt ze eerst in. Snelle wijzigingen (bijv. van een schuifregelaar) worden samengevoegd, alleen de laatste waarde wordt verstuurd. Opdrachten worden alleen aangenomen zolang de gateway verbonden is. Een opdracht geldt als uitgevoerd wanneer de volgende status van de gateway de waarden ervan toont (ongeveer 2,5 s later); tot dan is het datapunt niet bevestigd.
+
+## Datapunt 101 — protocol
+
+De WL-433 transporteert lampen, zones en scènes in het fabrikantspecifieke datapunt 101: frames van 12 bytes, Base64-gecodeerd, de laatste byte is de 8-bitsom van de bytes 0–10. Het formaat werd op 22-09-2026 ontcijferd uit de statusframes van een echte gateway en de opdrachten die de MiBoxer-app naar zijn Android-log schrijft:
+
+| Frame | Bytes (hex) | Betekenis |
 | --- | --- | --- |
-| `info.connection` | – | Verbinding met de gateway |
-| `info.ip` | – | Gebruikt IP-adres van de gateway |
-| `light.on` | 20 | Alle lampen aan/uit |
-| `light.mode` | 21 | `white`, `colour`, `scene`, `music` |
-| `light.brightness` | 22 / 24 | Helderheid 0–100 %. In kleurmodus wordt de helderheid van de kleur (DP 24) gewijzigd, anders de witte helderheid (DP 22). 0 schakelt uit, een waarde boven 0 schakelt in |
-| `light.colorTemperature` | 23 | Kleurtemperatuur 2700–6500 K (schakelt naar de witmodus) |
-| `light.color` | 24 | Kleur als `#rrggbb` (schakelt naar de kleurmodus) |
-| `light.countdown` | 26 | Seconden tot de gateway de lampen omschakelt (0 = uit) |
-| `dp101.raw` | 101 | Laatste DP-101-frame als Base64 — schrijven verstuurt de waarde ongewijzigd |
-| `dp101.hex` | 101 | Laatste DP-101-frame als hexbytes — schrijven verstuurt het frame, de controlesom wordt automatisch toegevoegd of gecorrigeerd |
-| `dp101.checksumValid` | 101 | Controlesom van het laatste frame is geldig |
-| `dp101.history` | 101 | JSON-lijst van de laatste 50 frames (`rx` = ontvangen, `tx` = verzonden) met tijdstempel |
-| `raw.dp<n>` | n | Elk verder door de gateway gemeld datapunt wordt automatisch aangemaakt (beschrijfbaar) |
+| Opdracht (app / adapter → gateway) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` opdracht: `01` tint 0–255 (waarde in byte 5–8, schakelt naar de kleurmodus), `02` helderheid 1–100 %, `03` kleurtemperatuur 0–38 (2700 K + 100 K per stap), `04` verzadiging 0–100 %, `05` scène 1–9, `06` toets (`01` aan, `02` uit, `03` S-, `04` S+, `06` witmodus); `zz` zone: `00` alle, `01`–`08` |
+| Statusopvraging | `43 00 00 80 00 00 00 00 00 80 80 C3` | de gateway antwoordt met een statusframe `44` |
+| Status (gateway → app) | `42` / `44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` wijzigingsmelding (ongeveer 2,5 s na de laatste wijziging), `44` antwoord op de opvraging; `mm` modus: `00` uit, `01` kleur, `02` wit, `03`–`0B` scène 1–9; `hh` tint, `tt` kleurtemperatuurstap, `bb` helderheid, `ss` verzadiging (0 in witmodus). De zone maakt geen deel uit van de status |
 
-Snelle wijzigingen (bijv. van een schuifregelaar) worden samengevoegd tot één commando. Commando's worden alleen geaccepteerd zolang de gateway verbonden is.
+De standaarddatapunten 20–23 leidt de gateway af uit deze opdrachten; de adapter gebruikt alleen datapunt 20 (aan/uit, komt eerder dan de status) en volgt voor al het andere de status uit datapunt 101. Het schrijven van het Tuya-kleurdatapunt 24 verandert de kleur van de lampen niet — ook de MiBoxer-app gebruikt het niet.
 
-## Datapunt 101 — zones en scènes
-
-De WL-433 verstuurt zone- en scènecommando's in het fabrikantspecifieke datapunt 101: binaire frames van 12 bytes, Base64-gecodeerd, waarbij het laatste byte de 8-bits som van bytes 0–10 is. De betekenis van de overige bytes is **nog niet gedecodeerd**. Tot die tijd biedt de adapter directe toegang:
-
-- ontvangen frames verschijnen in `dp101.raw` / `dp101.hex` en worden vastgelegd in `dp101.history`,
-- frames kunnen via `dp101.hex` worden verzonden — 11 bytes volstaan, de controlesom wordt automatisch toegevoegd, bijv. `43 00 00 80 00 00 00 00 00 80 80`
-
-**Hulp gezocht:** voer in de MiBoxer-app telkens precies één actie uit (per zone: aan, uit, kleur, scène 1–9) en noteer de frames uit `dp101.history`. Met genoeg opnames kunnen de frames worden gedecodeerd en eigen zone- en scènedatapunten worden toegevoegd. De werkwijze staat in hoofdstuk 6 van de protocolanalyse.
+Ruwe toegang voor eigen experimenten: `dp101.hex` accepteert 11 bytes (de controlesom wordt toegevoegd), bijv. `43 00 00 80 00 00 00 00 00 80 80` vraagt de status op.
 
 ## Beperkingen
 
-- De standaarddatapunten 20–26 werken op alle lampen van de gateway (mogelijk alleen op de in de app geselecteerde zone). Aparte zones en scènes volgen zodra datapunt 101 is gedecodeerd.
-- De gateway meldt zijn status nog steeds aan de Tuya-cloud. Het volledig blokkeren van internettoegang kan hem onbetrouwbaar maken.
-- Deze eerste versie is getest met een simulatie van de gateway (Tuya-protocol 3.3). Feedback met echte hardware is zeer welkom.
+- De gateway meldt één status voor alle lampen (de laatste instelling) en niet de status van elke zone — zie [Zones](#zones).
+- De snelheid van een scène (S+ / S-) meldt de gateway niet.
+- Of een lamp een opdracht via radio werkelijk heeft ontvangen, is niet te zien: de status komt van de gateway.
+- De gateway meldt zijn status nog steeds aan de Tuya-cloud. Het volledig blokkeren van de internettoegang kan hem onbetrouwbaar maken.
+
+## Logging en probleemoplossing
+
+De adapter logt volgens een vast schema, zodat het log op elk moment bruikbaar is voor het zoeken naar fouten:
+
+| Niveau | Wat wordt gelogd |
+| --- | --- |
+| error | Configuratiefouten waardoor de adapter niet kan werken (apparaat-ID ontbreekt, local key niet 16 tekens) |
+| warn | Problemen waarop u moet reageren — één keer gemeld en daarna alleen op debugniveau tot ze zijn opgelost: gateway weigert verbindingen, gegevens die niet kunnen worden ontsleuteld (verkeerde local key), opdrachten die de gateway niet bevestigt, onbeantwoorde statusopvragingen, onverwachte datapuntwaarden of statusframes |
+| info | Mijlpalen: configuratieoverzicht bij het starten, gateway gevonden, verbonden, verbinding verbroken, verbinding weer stabiel, datapunten van de andere zonevariant verwijderd |
+| debug | Elke stap met invoer, beslissingen en duur: datapuntwijziging → vertaling in frames van datapunt 101 (met de reden voor extra frames zoals „eerst inschakelen”) → wachtrij → verzenden → bevestiging door de status (of welke waarde nog ontbreekt), elk ontvangen datapunt en elke status en de bijgewerkte datapunten, statusopvragingen, zoeken. Opdrachten (`#12`) en verbindingspogingen (`Attempt #3`) zijn genummerd |
+| silly | Daarnaast het protocolspoor van de bibliotheek tuyapi (pakketten, ping/pong) met het label `[tuyapi]` |
+
+Elk bericht begint met een label: `[cfg]` configuratie, `[conn]` verbinding, `[rx]` gateway → datapunten, `[cmd]` datapunten → opdrachten, `[queue]` opdrachtwachtrij, `[poll]` statusverversing en -opvraging, `[disc]` zoeken, `[dp101]` ruwe frames, `[unload]` afsluiten, `[tuyapi]` bibliotheekspoor. De local key en de sessiesleutels verschijnen nooit in het log — het configuratieoverzicht toont alleen de lengte van de sleutel.
+
+Niveau wijzigen: Admin → **Instanties** → expertmodus → logniveau van `miboxer-wl433.0` → `debug` (of `silly` voor het protocolspoor; start daarna de instantie opnieuw). Voeg bij het melden van een probleem een debuglog en de inhoud van `dp101.history` toe.
 
 ## Changelog
 <!--
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.1.0 (2026-09-22)
+
+- (ssbingo) Datapunt 101 ontcijferd: lampen, zones en scènes worden nu bestuurd met de eigen opdrachten van de gateway (de kleur kon eerder niet worden ingesteld), de status wordt uit datapunt 101 gelezen en actief opgevraagd
+- (ssbingo) Nieuwe datapunten: tint, verzadiging, scène M1–M9, knoppen S+ / S-; zones in de instellingen kiesbaar als zonekeuze (`light.zone`) of één kanaal per zone
+- (ssbingo) Opdrachten worden bevestigd door de status van de gateway, er wordt een waarschuwing gelogd als de gateway ze niet bevestigt; uitgebreide debuguitvoer voor elke stap
+- (ssbingo) Duitse en Engelse gebruikershandleiding voor beginners
 
 ### 0.0.1 (2026-09-21)
 

@@ -19,6 +19,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var dp101_exports = {};
 __export(dp101_exports, {
   DP101_FRAME_LENGTH: () => DP101_FRAME_LENGTH,
+  buildDp101Frame: () => buildDp101Frame,
   decodeDp101: () => decodeDp101,
   dp101Checksum: () => dp101Checksum,
   encodeDp101Hex: () => encodeDp101Hex,
@@ -44,6 +45,17 @@ function toFrame(bytes) {
     bytes,
     checksumValid: bytes.length === DP101_FRAME_LENGTH && dp101Checksum(bytes, DP101_FRAME_LENGTH - 1) === bytes[DP101_FRAME_LENGTH - 1]
   };
+}
+function buildDp101Frame(payload) {
+  if (payload.length !== DP101_FRAME_LENGTH - 1) {
+    throw new RangeError(`A DP 101 frame needs ${DP101_FRAME_LENGTH - 1} payload bytes, got ${payload.length}`);
+  }
+  const bytes = Buffer.alloc(DP101_FRAME_LENGTH);
+  for (let i = 0; i < payload.length; i++) {
+    bytes[i] = payload[i] & 255;
+  }
+  bytes[DP101_FRAME_LENGTH - 1] = dp101Checksum(bytes, DP101_FRAME_LENGTH - 1);
+  return toFrame(bytes);
 }
 function decodeDp101(base64) {
   const value = base64.trim();
@@ -73,6 +85,7 @@ function encodeDp101Hex(hex) {
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   DP101_FRAME_LENGTH,
+  buildDp101Frame,
   decodeDp101,
   dp101Checksum,
   encodeDp101Hex,
