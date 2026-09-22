@@ -2244,8 +2244,8 @@ class MiboxerWl433 extends utils.Adapter {
     }
 
     private armTimer(timer: Timer, run: NextRun): void {
-        const wait = Math.min(Math.max(run.at.getTime() - Date.now(), 0), MAX_TIMER_WAIT_MS);
-        const timeout = this.setTimeout(() => void this.runTimer(timer, run), wait);
+        const delayMs = Math.min(Math.max(run.at.getTime() - Date.now(), 0), MAX_TIMER_WAIT_MS);
+        const timeout = this.setTimeout(() => void this.runTimer(timer, run), delayMs);
         if (timeout) {
             this.timerTimeouts.set(timer.index, timeout);
         }
