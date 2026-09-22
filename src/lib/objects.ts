@@ -2,7 +2,8 @@
  * Tuya datapoints of the WL-433 gateway and the ioBroker objects they are mapped to.
  */
 import { KELVIN_COLD, KELVIN_STEP, KELVIN_WARM } from "./color";
-import { SCENE_COUNT, ZONE_COUNT } from "./wl433";
+import { MAX_TIMERS } from "./timers";
+import { DMX_ADDRESS_MAX, DMX_ADDRESS_MIN, SCENE_COUNT, ZONE_COUNT } from "./wl433";
 
 /** Datapoint IDs of the WL-433 (Tuya standard light DPs plus vendor specific DP 101) */
 export const DP = {
@@ -252,6 +253,60 @@ export const BASE_OBJECTS: ObjectDefinition[] = [
     }),
 
     channel("raw", { en: "Other datapoints", de: "Weitere Datenpunkte" }),
+
+    channel("settings", { en: "Gateway settings", de: "Gateway-Einstellungen" }),
+    state("settings.dmxAddress", {
+        name: {
+            en: "DMX start address (5 channels: R, G, B, cold white, warm white)",
+            de: "DMX-Startadresse (5 Kanäle: R, G, B, Kaltweiß, Warmweiß)",
+        },
+        type: "number",
+        role: "level",
+        read: true,
+        write: true,
+        min: DMX_ADDRESS_MIN,
+        max: DMX_ADDRESS_MAX,
+    }),
+
+    channel("timers", {
+        en: "Timers (tab Timers in the instance settings)",
+        de: "Timer (Reiter Timer in den Instanzeinstellungen)",
+    }),
+    state("timers.active", {
+        name: { en: "Timers active (false = all timers paused)", de: "Timer aktiv (false = alle Timer pausiert)" },
+        type: "boolean",
+        role: "switch.enable",
+        read: true,
+        write: true,
+        def: true,
+    }),
+    state("timers.nextRun", {
+        name: { en: "Next timer run", de: "Nächste Timer-Ausführung" },
+        type: "string",
+        role: "text",
+        read: true,
+        write: false,
+        def: "",
+    }),
+    state("timers.lastRun", {
+        name: { en: "Last timer run", de: "Letzte Timer-Ausführung" },
+        type: "string",
+        role: "text",
+        read: true,
+        write: false,
+        def: "",
+    }),
+    state("timers.overview", {
+        name: {
+            en: `All timers (max. ${MAX_TIMERS}) with their next run`,
+            de: `Alle Timer (max. ${MAX_TIMERS}) mit nächster Ausführung`,
+        },
+        type: "string",
+        role: "json",
+        read: true,
+        write: false,
+        def: "[]",
+    }),
 ];
 
 /**

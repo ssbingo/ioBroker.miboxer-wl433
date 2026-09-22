@@ -28,7 +28,7 @@ Lampen, zones en scènes worden bestuurd met de eigen opdrachten van de gateway 
 ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-**Handleiding** waarin elke stap voor beginners wordt uitgelegd (installatie, instellingen, zones, voorbeelden, probleemoplossing): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
+**Gebruikershandleiding** waarin elke stap voor beginners wordt uitgelegd (installatie, instellingen, zones, timers, voorbeelden, probleemoplossing): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
 
 Achtergrondonderzoek (protocolanalyse, bronnen, testplan, ontcijferd datapunt 101), in het Duits: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Handleiding voor het koppelen van de lampen aan de gateway: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
 
@@ -49,6 +49,8 @@ Achtergrondonderzoek (protocolanalyse, bronnen, testplan, ontcijferd datapunt 10
 4. **Tuya-apparaten accepteren meestal maar één lokale verbinding.** Bij een test waren de MiBoxer-app en de adapter tegelijk verbonden; mislukt de verbinding echter steeds weer, sluit dan de app op telefoons in hetzelfde netwerk en bestuur de gateway niet tegelijk met andere lokale integraties (ioBroker.tuya, Home Assistant, tinytuya).
 
 ## Configuratie
+
+De instellingen van de instantie hebben twee tabbladen: **Gateway** (verbinding en zonebesturing) en **Timers** (zie [Timers](#timers)).
 
 | Instelling | Beschrijving |
 | --- | --- |
@@ -71,6 +73,32 @@ De gateway bestuurt tot 8 zones (zoals de afstandsbediening FUT086). Elke opdrac
 | **Eén kanaal per zone** | `light.*` toont de status van de gateway en stuurt naar alle zones. Daarnaast besturen `zones.zone1` … `zones.zone8` elke zone afzonderlijk. Een zonekanaal toont de laatste waarden die naar deze zone zijn gestuurd en door de gateway zijn bevestigd; het blijft leeg tot er iets naar de zone is gestuurd. | Scripts en visualisaties die zones rechtstreeks aansturen |
 
 Als de instelling wordt gewijzigd, worden de datapunten van de andere variant verwijderd.
+
+## Timers
+
+Het tabblad **Timers** van de instellingen van de instantie bevat maximaal **50 timers**. Ze draaien lokaal in de adapter, ook zonder internet, en kunnen meer dan de timers van de MiBoxer-app: zonnegebeurtenissen met verschuiving, willekeurige afwijking, seizoen, zones, kleuren, scènes en uitschakelen na een bepaalde duur. Voeg een timer toe met **+**, open hem om hem te wijzigen, kopieer of verwijder hem met de knoppen van het item. Wijzigingen worden van kracht wanneer de instellingen worden opgeslagen (de instantie wordt opnieuw gestart).
+
+| Veld | Beschrijving |
+| --- | --- |
+| Actief | Deactiveert deze timer zonder hem te verwijderen |
+| Naam | Wordt getoond in het log en in `timers.overview` |
+| Trigger | *Tijdstip* of een zonnegebeurtenis: dageraad, zonsopkomst, gouden uur (avond), zonsondergang, schemering, nacht |
+| Tijdstip | Alleen voor de trigger *Tijdstip* |
+| Verschuiving | Minuten (−720 tot 720), negatief = eerder — bijv. zonsondergang −15 |
+| Willekeurige afwijking | Tot ± minuten (0–120), bij elke uitvoering opnieuw willekeurig bepaald — voor een aanwezigheidssimulatie |
+| Weekdagen | Dagen waarop de timer wordt uitgevoerd |
+| Seizoen van / tot | `DD.MM.`, bijv. `01.05.` tot `30.09.`; een seizoen over de jaarwisseling heen (`01.11.` tot `28.02.`) werkt ook; leeg = het hele jaar |
+| Zone | Alle zones of zone 1–8 |
+| Actie | Inschakelen, uitschakelen, wit licht (kleurtemperatuur 2700–6500 K), kleur, scène M1–M9, alleen helderheid |
+| Helderheid | 1–100 %, leeg = ongewijzigd (niet bij *Uitschakelen*) |
+| Uitschakelen na | Minuten (0–1440), 0 = niet uitschakelen (niet bij *Uitschakelen*) |
+
+- **Zonnegebeurtenissen** worden berekend uit de positie in de systeeminstellingen van ioBroker (breedte- en lengtegraad) met [suncalc](https://github.com/mourner/suncalc). Zonder positie worden deze timers met een waarschuwing genegeerd. Op dagen zonder de gebeurtenis (poolgebieden) wordt de timer niet uitgevoerd.
+- Een timer verstuurt dezelfde opdrachten als de datapunten: in de zonemodus *zonekeuze* naar zijn zone (`light.zone` wordt niet gewijzigd), in de modus *één kanaal per zone* via `zones.zone<n>` (alle zones: `light.*`). De gateway bevestigt ze zoals elke opdracht.
+- Als de gateway niet verbonden is wanneer een timer aan de beurt is, wordt deze uitvoering overgeslagen (waarschuwing in het log) — ze wordt later niet ingehaald.
+- Timers met onvolledige instellingen worden genegeerd; het log en `timers.overview` noemen de reden.
+- De tijden zijn lokale tijden van het ioBroker-systeem; er wordt rekening gehouden met de zomertijd.
+- De **timers van de MiBoxer-app** worden in de Tuya-cloud opgeslagen en uitgevoerd (ze schakelen alleen alle zones aan of uit via datapunt 20 en hebben internet nodig). De adapter kan ze niet lezen of wijzigen, maar ziet hun effect in de status. Beide soorten timers kunnen tegelijk worden gebruikt.
 
 ## Datapunten
 
@@ -95,6 +123,11 @@ Als de instelling wordt gewijzigd, worden de datapunten van de andere variant ve
 | `dp101.checksumValid` | Controlesom van het laatste frame is geldig |
 | `dp101.history` | JSON-lijst van de laatste 50 frames (`rx` = ontvangen, `tx` = verzonden) met tijdstempel; herhaalde identieke statusantwoorden worden niet toegevoegd |
 | `raw.dp<n>` | Elk verder datapunt dat de gateway meldt, wordt automatisch aangemaakt (schrijfbaar) |
+| `settings.dmxAddress` | Startadres 1–512 van de DMX512-ingang van de gateway – vanaf dit adres gebruikt de gateway 5 kanalen: rood, groen, blauw, koud wit, warm wit (menu *DMX* in de app). Schrijven verstuurt het naar de zone van `light.zone` (zonekeuze) of naar alle zones; de gateway bevestigt het |
+| `timers.active` | `false` pauzeert alle timers (bijv. tijdens de vakantie of vanuit een script), `true` activeert ze weer |
+| `timers.nextRun` | Volgende uitvoering van een timer met de naam van de timer (`paused (…)` zolang `timers.active` `false` is) |
+| `timers.lastRun` | Laatste uitvoering van een timer met naam en actie |
+| `timers.overview` | JSON-lijst van alle timers: planning, actie, volgende uitvoering, reden als de timer wordt genegeerd |
 
 Waarden die een modus of ingeschakelde lampen nodig hebben, verstuurt de adapter zoals de MiBoxer-app: een kleurtemperatuur in kleurmodus schakelt bijvoorbeeld eerst naar de witmodus, een helderheid bij uitgeschakelde lampen schakelt ze eerst in. Snelle wijzigingen (bijv. van een schuifregelaar) worden samengevoegd, alleen de laatste waarde wordt verstuurd. Opdrachten worden alleen aangenomen zolang de gateway verbonden is. Een opdracht geldt als uitgevoerd wanneer de volgende status van de gateway de waarden ervan toont (ongeveer 2,5 s later); tot dan is het datapunt niet bevestigd.
 
@@ -106,9 +139,10 @@ De WL-433 transporteert lampen, zones en scènes in het fabrikantspecifieke data
 | --- | --- | --- |
 | Opdracht (app / adapter → gateway) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` opdracht: `01` tint 0–255 (waarde in byte 5–8, schakelt naar de kleurmodus), `02` helderheid 1–100 %, `03` kleurtemperatuur 0–38 (2700 K + 100 K per stap), `04` verzadiging 0–100 %, `05` scène 1–9, `06` toets (`01` aan, `02` uit, `03` S-, `04` S+, `06` witmodus); `zz` zone: `00` alle, `01`–`08` |
 | Statusopvraging | `43 00 00 80 00 00 00 00 00 80 80 C3` | de gateway antwoordt met een statusframe `44` |
-| Status (gateway → app) | `42` / `44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` wijzigingsmelding (ongeveer 2,5 s na de laatste wijziging), `44` antwoord op de opvraging; `mm` modus: `00` uit, `01` kleur, `02` wit, `03`–`0B` scène 1–9; `hh` tint, `tt` kleurtemperatuurstap, `bb` helderheid, `ss` verzadiging (0 in witmodus). De zone maakt geen deel uit van de status |
+| Status (gateway → app) | `42` / `44` `00 00 00 mm hh tt bb ss 0B dd xx` | `42` wijzigingsmelding (ongeveer 2,5 s na de laatste wijziging), `44` antwoord op de opvraging; `mm` modus: `00` uit, `01` kleur, `02` wit, `03`–`0B` scène 1–9; `hh` tint, `tt` kleurtemperatuurstap, `bb` helderheid, `ss` verzadiging (0 in witmodus), `dd` lage byte van het DMX-startadres. De zone maakt geen deel uit van de status |
+| DMX-startadres | `49 00 00 0B 02 aa aa 00 00 zz 80 ss` | `aa aa` adres 1–512 (hoge byte, lage byte), `zz` zone; antwoord `49 00 00 0B 02 01 tt bb ss aa aa xx` |
 
-De standaarddatapunten 20–23 leidt de gateway af uit deze opdrachten; de adapter gebruikt alleen datapunt 20 (aan/uit, komt eerder dan de status) en volgt voor al het andere de status uit datapunt 101. Het schrijven van het Tuya-kleurdatapunt 24 verandert de kleur van de lampen niet — ook de MiBoxer-app gebruikt het niet.
+De toets `06 05` schakelt de lampen ook uit (een tweede keer houdt hij ze uit, hij wisselt niet tussen aan en uit); wat hij anders doet dan `06 02` is nog onbekend, de adapter gebruikt hem niet. De standaarddatapunten 20–23 leidt de gateway af uit deze opdrachten; de adapter gebruikt alleen datapunt 20 (aan/uit, komt eerder dan de status) en volgt voor al het andere de status uit datapunt 101. Het schrijven van het Tuya-kleurdatapunt 24 verandert de kleur van de lampen niet — ook de MiBoxer-app gebruikt het niet.
 
 Ruwe toegang voor eigen experimenten: `dp101.hex` accepteert 11 bytes (de controlesom wordt toegevoegd), bijv. `43 00 00 80 00 00 00 00 00 80 80` vraagt de status op.
 
@@ -117,7 +151,7 @@ Ruwe toegang voor eigen experimenten: `dp101.hex` accepteert 11 bytes (de contro
 - De gateway meldt één status voor alle lampen (de laatste instelling) en niet de status van elke zone — zie [Zones](#zones).
 - De snelheid van een scène (S+ / S-) meldt de gateway niet.
 - Of een lamp een opdracht via radio werkelijk heeft ontvangen, is niet te zien: de status komt van de gateway.
-- De gateway meldt zijn status nog steeds aan de Tuya-cloud. Het volledig blokkeren van de internettoegang kan hem onbetrouwbaar maken.
+- De gateway meldt zijn status nog steeds aan de Tuya-cloud. Het volledig blokkeren van de internettoegang kan hem onbetrouwbaar maken. De timers van de MiBoxer-app hebben de cloud nodig, de timers van de adapter niet.
 
 ## Logging en probleemoplossing
 
@@ -126,12 +160,12 @@ De adapter logt volgens een vast schema, zodat het log op elk moment bruikbaar i
 | Niveau | Wat wordt gelogd |
 | --- | --- |
 | error | Configuratiefouten waardoor de adapter niet kan werken (apparaat-ID ontbreekt, local key niet 16 tekens) |
-| warn | Problemen waarop u moet reageren — één keer gemeld en daarna alleen op debugniveau tot ze zijn opgelost: gateway weigert verbindingen, gegevens die niet kunnen worden ontsleuteld (verkeerde local key), opdrachten die de gateway niet bevestigt, onbeantwoorde statusopvragingen, onverwachte datapuntwaarden of statusframes |
-| info | Mijlpalen: configuratieoverzicht bij het starten, gateway gevonden, verbonden, verbinding verbroken, verbinding weer stabiel, datapunten van de andere zonevariant verwijderd |
-| debug | Elke stap met invoer, beslissingen en duur: datapuntwijziging → vertaling in frames van datapunt 101 (met de reden voor extra frames zoals „eerst inschakelen”) → wachtrij → verzenden → bevestiging door de status (of welke waarde nog ontbreekt), elk ontvangen datapunt en elke status en de bijgewerkte datapunten, statusopvragingen, zoeken. Opdrachten (`#12`) en verbindingspogingen (`Attempt #3`) zijn genummerd |
+| warn | Problemen waarop u moet reageren — één keer gemeld en daarna alleen op debugniveau tot ze zijn opgelost: gateway weigert verbindingen, gegevens die niet kunnen worden ontsleuteld (verkeerde local key), opdrachten die de gateway niet bevestigt, onbeantwoorde statusopvragingen, onverwachte datapuntwaarden of statusframes, timers met onvolledige instellingen of zonder positie voor zonnegebeurtenissen, timers die de lampen niet konden schakelen, een DMX-startadres dat de gateway niet bevestigt |
+| info | Mijlpalen: configuratieoverzicht bij het starten, gateway gevonden, verbonden, verbinding verbroken, verbinding weer stabiel, objecten van de andere zonevariant verwijderd, aantal actieve timers, timers gepauzeerd of weer actief |
+| debug | Elke stap met invoer, beslissingen en duur: datapuntwijziging → vertaling in frames van datapunt 101 (met de reden voor extra frames zoals „eerst inschakelen”) → opdrachtwachtrij → verzenden → bevestiging door de status (of welke waarde nog ontbreekt), elk ontvangen datapunt en elke status en de bijgewerkte datapunten, statusopvragingen, zoeken, elke timer met zijn planning, volgende uitvoering (zonnegebeurtenis, verschuiving, willekeurige afwijking) en uitvoering. Opdrachten (`#12`) en verbindingspogingen (`Attempt #3`) zijn genummerd, zodat alle regels van één opdracht te volgen zijn |
 | silly | Daarnaast het protocolspoor van de bibliotheek tuyapi (pakketten, ping/pong) met het label `[tuyapi]` |
 
-Elk bericht begint met een label: `[cfg]` configuratie, `[conn]` verbinding, `[rx]` gateway → datapunten, `[cmd]` datapunten → opdrachten, `[queue]` opdrachtwachtrij, `[poll]` statusverversing en -opvraging, `[disc]` zoeken, `[dp101]` ruwe frames, `[unload]` afsluiten, `[tuyapi]` bibliotheekspoor. De local key en de sessiesleutels verschijnen nooit in het log — het configuratieoverzicht toont alleen de lengte van de sleutel.
+Elk bericht begint met een componentlabel: `[cfg]` configuratie, `[conn]` verbinding, `[rx]` gateway → datapunten, `[cmd]` datapunten → opdrachten, `[queue]` opdrachtwachtrij, `[poll]` statusverversing en -opvraging, `[disc]` zoeken, `[dp101]` ruwe frames, `[timer]` timers, `[unload]` afsluiten, `[tuyapi]` bibliotheekspoor. De local key en de sessiesleutels verschijnen nooit in het log — het configuratieoverzicht toont alleen de lengte van de sleutel.
 
 Niveau wijzigen: Admin → **Instanties** → expertmodus → logniveau van `miboxer-wl433.0` → `debug` (of `silly` voor het protocolspoor; start daarna de instantie opnieuw). Voeg bij het melden van een probleem een debuglog en de inhoud van `dp101.history` toe.
 
@@ -140,6 +174,12 @@ Niveau wijzigen: Admin → **Instanties** → expertmodus → logniveau van `mib
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.0 (2026-09-22)
+
+- (ssbingo) Lokale timers in het nieuwe tabblad *Timers* van de instellingen van de instantie (maximaal 50): tijdstip of zonnegebeurtenis met verschuiving en willekeurige afwijking, weekdagen, seizoen, zone, elke lichtactie en uitschakelen na een bepaalde duur; datapunten `timers.active`, `timers.nextRun`, `timers.lastRun` en `timers.overview`
+- (ssbingo) Startadres van de DMX512-ingang van de gateway leesbaar en schrijfbaar (`settings.dmxAddress`)
+- (ssbingo) Gedocumenteerd: DMX-opdracht, toets `06 05`, cloudtimers van de MiBoxer-app; handleidingen met een nieuw hoofdstuk over timers
 
 ### 0.1.0 (2026-09-22)
 

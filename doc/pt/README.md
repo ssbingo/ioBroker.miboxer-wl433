@@ -28,7 +28,7 @@ Lâmpadas, zonas e cenas são controladas com os comandos próprios do gateway n
 ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-**Manual** com cada passo explicado para principiantes (instalação, definições, zonas, exemplos, resolução de problemas): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
+**Manual do utilizador** com cada passo explicado para principiantes (instalação, definições, zonas, temporizadores, exemplos, resolução de problemas): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
 
 Investigação de base (análise do protocolo, fontes, plano de testes, ponto de dados 101 descodificado), em alemão: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guia para associar as lâmpadas ao gateway: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
 
@@ -49,6 +49,8 @@ Investigação de base (análise do protocolo, fontes, plano de testes, ponto de
 4. **Os dispositivos Tuya normalmente aceitam apenas uma ligação local.** Num teste, a aplicação MiBoxer e o adaptador estiveram ligados ao mesmo tempo; mas se a ligação falhar repetidamente, feche a aplicação nos telemóveis da mesma rede e não controle o gateway ao mesmo tempo com outras integrações locais (ioBroker.tuya, Home Assistant, tinytuya).
 
 ## Configuração
+
+As definições da instância têm dois separadores: **Gateway** (ligação e controlo de zonas) e **Temporizadores** (ver [Temporizadores](#temporizadores)).
 
 | Definição | Descrição |
 | --- | --- |
@@ -71,6 +73,32 @@ O gateway controla até 8 zonas (como o comando FUT086). Cada comando pode ir pa
 | **Um canal por zona** | `light.*` mostra o estado do gateway e envia para todas as zonas. Além disso, `zones.zone1` … `zones.zone8` controlam cada zona separadamente. Um canal de zona mostra os últimos valores enviados para essa zona e confirmados pelo gateway; fica vazio até ser enviado algo para a zona. | Scripts e visualizações que se dirigem diretamente às zonas |
 
 Ao alterar a definição, os estados da outra variante são eliminados.
+
+## Temporizadores
+
+O separador **Temporizadores** das definições da instância contém até **50 temporizadores**. Funcionam localmente no adaptador, também sem Internet, e fazem mais do que os temporizadores da aplicação MiBoxer: eventos solares com desvio, desvio aleatório, época, zonas, cores, cenas e desligar após uma duração. Adicione um temporizador com **+**, abra-o para o alterar, copie-o ou elimine-o com os botões da entrada. As alterações entram em vigor quando as definições são guardadas (a instância reinicia).
+
+| Campo | Descrição |
+| --- | --- |
+| Ativo | Desativa este temporizador sem o eliminar |
+| Nome | Mostrado no registo e em `timers.overview` |
+| Acionador | *Hora do dia* ou um evento solar: alvorada, nascer do sol, hora dourada (tarde), pôr do sol, crepúsculo, noite |
+| Hora do dia | Apenas para o acionador *Hora do dia* |
+| Desvio | Minutos (−720 a 720), negativo = mais cedo — p. ex. pôr do sol −15 |
+| Desvio aleatório | Até ± minutos (0–120), sorteado de novo em cada execução — para uma simulação de presença |
+| Dias da semana | Dias em que o temporizador é executado |
+| Época de / até | `DD.MM.`, p. ex. `01.05.` a `30.09.`; uma época que atravessa a passagem de ano (`01.11.` a `28.02.`) também funciona; vazio = todo o ano |
+| Zona | Todas as zonas ou zona 1–8 |
+| Ação | Ligar, desligar, luz branca (temperatura de cor 2700–6500 K), cor, cena M1–M9, apenas brilho |
+| Brilho | 1–100 %, vazio = sem alteração (não para *Desligar*) |
+| Desligar após | Minutos (0–1440), 0 = não desligar (não para *Desligar*) |
+
+- Os **eventos solares** são calculados a partir da posição nas definições de sistema do ioBroker (latitude e longitude) com [suncalc](https://github.com/mourner/suncalc). Sem posição, estes temporizadores são ignorados com um aviso. Nos dias sem o evento (regiões polares), o temporizador não é executado.
+- Um temporizador envia os mesmos comandos que os estados: no modo de zonas *seletor de zona* para a sua zona (`light.zone` não é alterado), no modo *um canal por zona* através de `zones.zone<n>` (todas as zonas: `light.*`). O gateway confirma-os como qualquer comando.
+- Se o gateway não estiver ligado quando um temporizador tiver de ser executado, essa execução é ignorada (aviso no registo) — não é repetida mais tarde.
+- Os temporizadores com definições incompletas são ignorados; o registo e `timers.overview` indicam o motivo.
+- As horas são horas locais do sistema ioBroker; a hora de verão é tida em conta.
+- Os **temporizadores da aplicação MiBoxer** são guardados e executados na nuvem Tuya (apenas ligam ou desligam todas as zonas através do ponto de dados 20 e precisam de Internet). O adaptador não os pode ler nem alterar, mas vê o seu efeito no estado. Ambos os tipos de temporizadores podem ser usados ao mesmo tempo.
 
 ## Estados
 
@@ -95,6 +123,11 @@ Ao alterar a definição, os estados da outra variante são eliminados.
 | `dp101.checksumValid` | A soma de verificação da última trama é válida |
 | `dp101.history` | Lista JSON das últimas 50 tramas (`rx` = recebida, `tx` = enviada) com carimbo temporal; respostas de estado idênticas repetidas não são acrescentadas |
 | `raw.dp<n>` | Qualquer outro ponto de dados comunicado pelo gateway é criado automaticamente (com escrita) |
+| `settings.dmxAddress` | Endereço inicial 1–512 da entrada DMX512 do gateway – a partir dele, o gateway usa 5 canais: vermelho, verde, azul, branco frio, branco quente (menu *DMX* na aplicação). Escrevê-lo envia-o para a zona de `light.zone` (seletor de zona) ou para todas as zonas; o gateway confirma-o |
+| `timers.active` | `false` pausa todos os temporizadores (p. ex. durante as férias ou a partir de um script), `true` volta a ativá-los |
+| `timers.nextRun` | Próxima execução de um temporizador com o nome do temporizador (`paused (…)` enquanto `timers.active` for `false`) |
+| `timers.lastRun` | Última execução de um temporizador com nome e ação |
+| `timers.overview` | Lista JSON de todos os temporizadores: horário, ação, próxima execução, motivo se o temporizador for ignorado |
 
 Os valores que precisam de um modo ou das lâmpadas ligadas são enviados como faz a aplicação MiBoxer: por exemplo, uma temperatura de cor no modo de cor muda primeiro para o modo branco, e um brilho com as lâmpadas desligadas liga-as primeiro. Alterações rápidas (p. ex. de um cursor) são agrupadas, só o último valor é enviado. Os comandos só são aceites enquanto o gateway está ligado. Um comando é considerado executado quando o estado seguinte do gateway mostra os seus valores (cerca de 2,5 s depois); até lá, o estado não está confirmado.
 
@@ -106,9 +139,10 @@ O WL-433 transporta lâmpadas, zonas e cenas no ponto de dados 101 específico d
 | --- | --- | --- |
 | Comando (aplicação / adaptador → gateway) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` comando: `01` tom 0–255 (valor nos bytes 5–8, muda para o modo de cor), `02` brilho 1–100 %, `03` temperatura de cor 0–38 (2700 K + 100 K por passo), `04` saturação 0–100 %, `05` cena 1–9, `06` tecla (`01` ligar, `02` desligar, `03` S-, `04` S+, `06` modo branco); `zz` zona: `00` todas, `01`–`08` |
 | Pedido de estado | `43 00 00 80 00 00 00 00 00 80 80 C3` | o gateway responde com uma trama de estado `44` |
-| Estado (gateway → aplicação) | `42` / `44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` relatório de alteração (cerca de 2,5 s após a última alteração), `44` resposta ao pedido; `mm` modo: `00` desligado, `01` cor, `02` branco, `03`–`0B` cena 1–9; `hh` tom, `tt` passo de temperatura de cor, `bb` brilho, `ss` saturação (0 no modo branco). A zona não faz parte do estado |
+| Estado (gateway → aplicação) | `42` / `44` `00 00 00 mm hh tt bb ss 0B dd xx` | `42` relatório de alteração (cerca de 2,5 s após a última alteração), `44` resposta ao pedido; `mm` modo: `00` desligado, `01` cor, `02` branco, `03`–`0B` cena 1–9; `hh` tom, `tt` passo de temperatura de cor, `bb` brilho, `ss` saturação (0 no modo branco), `dd` byte baixo do endereço inicial DMX. A zona não faz parte do estado |
+| Endereço inicial DMX | `49 00 00 0B 02 aa aa 00 00 zz 80 ss` | `aa aa` endereço 1–512 (byte alto, byte baixo), `zz` zona; resposta `49 00 00 0B 02 01 tt bb ss aa aa xx` |
 
-O gateway deriva os pontos de dados padrão 20–23 destes comandos; o adaptador usa apenas o ponto de dados 20 (ligar/desligar, chega antes do estado) e segue o estado do ponto de dados 101 para tudo o resto. Escrever o ponto de dados de cor Tuya 24 não muda a cor das lâmpadas — a aplicação MiBoxer também não o usa.
+A tecla `06 05` também desliga as lâmpadas (uma segunda vez mantém-nas desligadas, não alterna entre ligar e desligar); o que faz de diferente de `06 02` ainda é desconhecido, o adaptador não a usa. O gateway deriva os pontos de dados padrão 20–23 destes comandos; o adaptador usa apenas o ponto de dados 20 (ligar/desligar, chega antes do estado) e segue o estado do ponto de dados 101 para tudo o resto. Escrever o ponto de dados de cor Tuya 24 não muda a cor das lâmpadas — a aplicação MiBoxer também não o usa.
 
 Acesso direto para as suas próprias experiências: `dp101.hex` aceita 11 bytes (a soma de verificação é acrescentada), p. ex. `43 00 00 80 00 00 00 00 00 80 80` pede o estado.
 
@@ -117,7 +151,7 @@ Acesso direto para as suas próprias experiências: `dp101.hex` aceita 11 bytes 
 - O gateway comunica um único estado para todas as lâmpadas (a última definição) e não o estado de cada zona — ver [Zonas](#zonas).
 - O gateway não comunica a velocidade de uma cena (S+ / S-).
 - Não é possível ver se uma lâmpada recebeu de facto um comando por rádio: o estado vem do gateway.
-- O gateway continua a comunicar o seu estado à nuvem Tuya. Bloquear completamente o seu acesso à Internet pode torná-lo pouco fiável.
+- O gateway continua a comunicar o seu estado à nuvem Tuya. Bloquear completamente o seu acesso à Internet pode torná-lo pouco fiável. Os temporizadores da aplicação MiBoxer precisam da nuvem, os temporizadores do adaptador não.
 
 ## Registo e resolução de problemas
 
@@ -126,12 +160,12 @@ O adaptador regista segundo um esquema fixo, para que o registo seja sempre úti
 | Nível | O que é registado |
 | --- | --- |
 | error | Erros de configuração que impedem o adaptador de funcionar (falta o ID do dispositivo, chave local sem 16 caracteres) |
-| warn | Problemas sobre os quais tem de agir — comunicados uma vez e depois só ao nível debug até serem resolvidos: o gateway recusa ligações, dados que não podem ser decifrados (chave local errada), comandos não confirmados pelo gateway, pedidos de estado sem resposta, valores de pontos de dados ou tramas de estado inesperados |
-| info | Marcos: resumo da configuração no arranque, gateway encontrado, ligado, ligação perdida, ligação de novo estável, estados da outra variante de zonas removidos |
-| debug | Cada passo com as suas entradas, decisões e durações: alteração de estado → tradução em tramas do ponto de dados 101 (com o motivo de tramas adicionais como «ligar primeiro») → fila → envio → confirmação pelo estado (ou qual valor ainda falta), cada ponto de dados e estado recebido e os estados atualizados, pedidos de estado, pesquisa. Os comandos (`#12`) e as tentativas de ligação (`Attempt #3`) são numerados |
+| warn | Problemas sobre os quais tem de agir — comunicados uma vez e depois só ao nível debug até serem resolvidos: o gateway recusa ligações, dados que não podem ser decifrados (chave local errada), comandos não confirmados pelo gateway, pedidos de estado sem resposta, valores de pontos de dados ou tramas de estado inesperados, temporizadores com definições incompletas ou sem posição para eventos solares, temporizadores que não conseguiram comutar as lâmpadas, um endereço inicial DMX não confirmado pelo gateway |
+| info | Marcos: resumo da configuração no arranque, gateway encontrado, ligado, ligação perdida, ligação de novo estável, objetos da outra variante de zonas removidos, número de temporizadores ativos, temporizadores em pausa ou de novo ativos |
+| debug | Cada passo com as suas entradas, decisões e durações: alteração de estado → tradução em tramas do ponto de dados 101 (com o motivo de tramas adicionais como «ligar primeiro») → fila de comandos → envio → confirmação pelo estado (ou qual valor ainda falta), cada ponto de dados e estado recebido e os estados atualizados, pedidos de estado, pesquisa, cada temporizador com o seu horário, próxima execução (evento solar, desvio, desvio aleatório) e execução. Os comandos (`#12`) e as tentativas de ligação (`Attempt #3`) são numerados, para que se possam seguir todas as linhas de um comando |
 | silly | Adicionalmente, o rasto do protocolo da biblioteca tuyapi (pacotes, ping/pong) com a etiqueta `[tuyapi]` |
 
-Cada mensagem começa com uma etiqueta: `[cfg]` configuração, `[conn]` ligação, `[rx]` gateway → estados, `[cmd]` estados → comandos, `[queue]` fila de comandos, `[poll]` atualização e pedido de estado, `[disc]` pesquisa, `[dp101]` tramas em bruto, `[unload]` encerramento, `[tuyapi]` rasto da biblioteca. A chave local e as chaves de sessão nunca aparecem no registo — o resumo da configuração mostra apenas o comprimento da chave.
+Cada mensagem começa com uma etiqueta de componente: `[cfg]` configuração, `[conn]` ligação, `[rx]` gateway → estados, `[cmd]` estados → comandos, `[queue]` fila de comandos, `[poll]` atualização e pedido de estado, `[disc]` pesquisa, `[dp101]` tramas em bruto, `[timer]` temporizadores, `[unload]` encerramento, `[tuyapi]` rasto da biblioteca. A chave local e as chaves de sessão nunca aparecem no registo — o resumo da configuração mostra apenas o comprimento da chave.
 
 Para mudar o nível: Admin → **Instâncias** → modo de especialista → nível de registo de `miboxer-wl433.0` → `debug` (ou `silly` para o rasto do protocolo; depois reinicie a instância). Anexe um registo debug e o conteúdo de `dp101.history` quando comunicar um problema.
 
@@ -140,6 +174,12 @@ Para mudar o nível: Admin → **Instâncias** → modo de especialista → nív
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.0 (2026-09-22)
+
+- (ssbingo) Temporizadores locais no novo separador *Temporizadores* das definições da instância (até 50): hora do dia ou evento solar com desvio e desvio aleatório, dias da semana, época, zona, qualquer ação de luz e desligar após uma duração; estados `timers.active`, `timers.nextRun`, `timers.lastRun` e `timers.overview`
+- (ssbingo) O endereço inicial da entrada DMX512 do gateway pode ser lido e escrito (`settings.dmxAddress`)
+- (ssbingo) Documentado: comando DMX, tecla `06 05`, temporizadores na nuvem da aplicação MiBoxer; manuais com um novo capítulo sobre temporizadores
 
 ### 0.1.0 (2026-09-22)
 

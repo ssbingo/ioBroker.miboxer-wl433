@@ -33,6 +33,7 @@ __export(objects_exports, {
 });
 module.exports = __toCommonJS(objects_exports);
 var import_color = require("./color");
+var import_timers = require("./timers");
 var import_wl433 = require("./wl433");
 const DP = {
   /** switch_led (bool), derived by the gateway from DP 101 commands */
@@ -239,7 +240,59 @@ const BASE_OBJECTS = [
     write: false,
     def: "[]"
   }),
-  channel("raw", { en: "Other datapoints", de: "Weitere Datenpunkte" })
+  channel("raw", { en: "Other datapoints", de: "Weitere Datenpunkte" }),
+  channel("settings", { en: "Gateway settings", de: "Gateway-Einstellungen" }),
+  state("settings.dmxAddress", {
+    name: {
+      en: "DMX start address (5 channels: R, G, B, cold white, warm white)",
+      de: "DMX-Startadresse (5 Kan\xE4le: R, G, B, Kaltwei\xDF, Warmwei\xDF)"
+    },
+    type: "number",
+    role: "level",
+    read: true,
+    write: true,
+    min: import_wl433.DMX_ADDRESS_MIN,
+    max: import_wl433.DMX_ADDRESS_MAX
+  }),
+  channel("timers", {
+    en: "Timers (tab Timers in the instance settings)",
+    de: "Timer (Reiter Timer in den Instanzeinstellungen)"
+  }),
+  state("timers.active", {
+    name: { en: "Timers active (false = all timers paused)", de: "Timer aktiv (false = alle Timer pausiert)" },
+    type: "boolean",
+    role: "switch.enable",
+    read: true,
+    write: true,
+    def: true
+  }),
+  state("timers.nextRun", {
+    name: { en: "Next timer run", de: "N\xE4chste Timer-Ausf\xFChrung" },
+    type: "string",
+    role: "text",
+    read: true,
+    write: false,
+    def: ""
+  }),
+  state("timers.lastRun", {
+    name: { en: "Last timer run", de: "Letzte Timer-Ausf\xFChrung" },
+    type: "string",
+    role: "text",
+    read: true,
+    write: false,
+    def: ""
+  }),
+  state("timers.overview", {
+    name: {
+      en: `All timers (max. ${import_timers.MAX_TIMERS}) with their next run`,
+      de: `Alle Timer (max. ${import_timers.MAX_TIMERS}) mit n\xE4chster Ausf\xFChrung`
+    },
+    type: "string",
+    role: "json",
+    read: true,
+    write: false,
+    def: "[]"
+  })
 ];
 function lightChannel(zoneMode) {
   return zoneMode === "selector" ? channel("light", {

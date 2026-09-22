@@ -8,7 +8,8 @@
  *
  * Logging: see src/lib/logging.ts for the level concept. Every message carries a component tag:
  * [cfg] configuration, [conn] connection, [rx] gateway -> states, [cmd] states -> commands, [queue] command queue,
- * [poll] status refresh, [disc] LAN discovery, [dp101] raw frames, [unload] shutdown, [tuyapi] library trace.
+ * [poll] status refresh, [disc] LAN discovery, [dp101] raw frames, [timer] timers, [unload] shutdown,
+ * [tuyapi] library trace.
  */
 
 import * as utils from "@iobroker/adapter-core";
@@ -26,6 +27,20 @@ import { type DiscoveredDevice, DISCOVERY_PORTS, TuyaDiscovery } from "./lib/dis
 import { decodeDp101, type Dp101Frame, encodeDp101Hex } from "./lib/dp101";
 import { bridgeTuyapiDebug, formatDuration, redact, shorten } from "./lib/logging";
 import {
+    ASTRO_TRIGGERS,
+    describeAction,
+    describeSchedule,
+    formatLocal,
+    type GeoPosition,
+    MAX_TIMERS,
+    type NextRun,
+    nextRun,
+    parseTimer,
+    type Timer,
+    type TimerConfig,
+    toList,
+} from "./lib/timers";
+import {
     BASE_OBJECTS,
     COUNTDOWN_MAX,
     DP,
@@ -42,12 +57,16 @@ import {
 } from "./lib/objects";
 import {
     buildCommand,
+    buildDmxCommand,
     buildStatusQuery,
     COMMAND,
     describeCommand,
     describeStatus,
     FRAME_TYPE,
+    DMX_ADDRESS_MAX,
+    DMX_ADDRESS_MIN,
     KEY,
+    parseDmxAnswer,
     parseStatus,
     SCENE_COUNT,
     type Wl433Mode,
@@ -88,6 +107,8 @@ interface Wl433Command {
     update: LightValues;
     /** the adapter's own status query: not recorded in the history, not confirmed */
     internal: boolean;
+    /** DMX start address of a DMX command, confirmed by the DMX answer of the gateway instead of the status */
+    dmx?: number;
 }
 
 /** A queued write to the gateway */
@@ -166,6 +187,10 @@ const STATUS_REPORT_TIMEOUT_MS = 6_000;
 const STATUS_QUERY_TIMEOUT_MS = 3_000;
 /** Unanswered status queries in a row before the user is warned */
 const UNANSWERED_QUERIES_BEFORE_WARNING = 3;
+/** The gateway answers a DMX command within about 0.5 s */
+const DMX_ANSWER_TIMEOUT_MS = 5_000;
+/** Longest single wait of a timer, longer waits are split (setTimeout accepts at most about 24.8 days) */
+const MAX_TIMER_WAIT_MS = 24 * 60 * 60 * 1000;
 
 function errorText(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -215,6 +240,15 @@ function commandName(commandByte: number | undefined): string {
 
 function seqList(items: { seq: number }[]): string {
     return [...new Set(items.map(item => `#${item.seq}`))].join(",");
+}
+
+/**
+ * Name of a timer as entered in the instance settings, "" if none.
+ *
+ * @param config - timer of native.timers
+ */
+function configName(config: TimerConfig | undefined): string {
+    return typeof config?.name === "string" ? config.name : "";
 }
 
 /**
@@ -319,6 +353,21 @@ class MiboxerWl433 extends utils.Adapter {
     private readonly unexpectedDps = new Set<string>();
     /** Finish callbacks of running LAN discoveries, called on unload */
     private readonly activeDiscoveries = new Set<() => void>();
+    /** valid timers of the instance settings */
+    private timers: Timer[] = [];
+    /** why timers of the instance settings are ignored, by position */
+    private readonly timerErrors = new Map<number, string>();
+    private readonly timerTimeouts = new Map<number, ioBroker.Timeout>();
+    /** switch-off after the duration of a timer, by position */
+    private readonly timerOffTimeouts = new Map<number, ioBroker.Timeout>();
+    private readonly timerRuns = new Map<number, NextRun | null>();
+    private timersActive = true;
+    private position: GeoPosition | undefined;
+    private timerProblemReported = false;
+    /** last known DMX start address (the status only contains its low byte) */
+    private dmxAddress: number | undefined;
+    private pendingDmx: { seq: number; address: number; sentAt: number } | undefined;
+    private dmxTimer: ioBroker.Timeout | undefined;
 
     public constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({
@@ -359,13 +408,16 @@ class MiboxerWl433 extends utils.Adapter {
         this.subscribeStates("dp101.raw");
         this.subscribeStates("dp101.hex");
         this.subscribeStates("raw.*");
+        this.subscribeStates("timers.active");
+        this.subscribeStates("settings.dmxAddress");
         if (this.zoneMode === "channels") {
             this.subscribeStates(`${ZONES_FOLDER}.*`);
         }
         this.log.debug(
-            `[cfg] Subscribed to light.*, dp101.raw, dp101.hex, raw.*${this.zoneMode === "channels" ? `, ${ZONES_FOLDER}.*` : ""}`,
+            `[cfg] Subscribed to light.*, dp101.raw, dp101.hex, raw.*, timers.active, settings.dmxAddress${this.zoneMode === "channels" ? `, ${ZONES_FOLDER}.*` : ""}`,
         );
 
+        await this.setupTimers();
         await this.connectGateway();
     }
 
@@ -560,6 +612,11 @@ class MiboxerWl433 extends utils.Adapter {
             this.clearStableTimer();
             this.clearConfirmTimer();
             this.clearQueryTimer();
+            this.clearAllTimers();
+            if (this.dmxTimer) {
+                this.clearTimeout(this.dmxTimer);
+                this.dmxTimer = undefined;
+            }
             if (this.flushTimer) {
                 this.clearTimeout(this.flushTimer);
                 this.flushTimer = undefined;
@@ -1239,6 +1296,11 @@ class MiboxerWl433 extends utils.Adapter {
             await this.onStatus(status);
             return;
         }
+        const dmx = parseDmxAnswer(frame);
+        if (dmx !== null) {
+            await this.onDmxAnswer(dmx);
+            return;
+        }
         const type = frame.bytes[0];
         if (frame.checksumValid && (type === FRAME_TYPE.REPORT || type === FRAME_TYPE.ANSWER)) {
             const text = `[dp101] Status frame ${frame.hex} has an unknown mode 0x${frame.bytes[4].toString(16)}, not evaluated`;
@@ -1287,6 +1349,7 @@ class MiboxerWl433 extends utils.Adapter {
             `[rx] DP 101 status (${status.type}): ${describeStatus(status)} -> ${changed.length ? `light: ${changed.join(", ")}` : "light.* unchanged"}`,
         );
         await this.checkConfirmations(status);
+        await this.onDmxLowByte(status.dmxLowByte);
     }
 
     /**
@@ -1507,6 +1570,12 @@ class MiboxerWl433 extends utils.Adapter {
             case "light.zone":
                 await this.selectZone(seq, val);
                 return;
+            case "timers.active":
+                await this.setTimersActive(seq, toBoolean(val));
+                return;
+            case "settings.dmxAddress":
+                this.setDmxAddress(seq, id, val);
+                return;
             case "dp101.raw": {
                 const frame = decodeDp101(String(val));
                 this.log.debug(
@@ -1536,12 +1605,25 @@ class MiboxerWl433 extends utils.Adapter {
             return;
         }
         const { target, field } = resolved;
+        this.sendField(seq, id, target, field, val);
+    }
+
+    /**
+     * Translates one field (e.g. "brightness") into frames and queues them.
+     *
+     * @param seq - command number
+     * @param source - what caused the command (state ID or timer), for the log
+     * @param target - where the command goes
+     * @param field - state name, e.g. "brightness"
+     * @param val - new value
+     */
+    private sendField(seq: number, source: string, target: Target, field: string, val: ioBroker.StateValue): void {
         const steps = this.buildSteps(seq, target, field, val);
         if (!steps.length) {
             return;
         }
         this.log.debug(
-            `[cmd] #${seq} ${id} -> ${target.zone === ZONE_ALL ? "all zones" : `zone ${target.zone}`}: ${steps
+            `[cmd] #${seq} ${source} ${field} -> ${target.zone === ZONE_ALL ? "all zones" : `zone ${target.zone}`}: ${steps
                 .map(
                     step =>
                         `${describeCommand(step.command, step.value, target.zone).replace(/ \((all zones|zone \d)\)$/, "")}` +
@@ -1551,7 +1633,7 @@ class MiboxerWl433 extends utils.Adapter {
         );
         this.enqueueWl433(
             seq,
-            id,
+            source,
             steps.map(step => ({
                 frame: buildCommand(step.command, step.value, target.zone),
                 zone: target.zone,
@@ -1951,7 +2033,7 @@ class MiboxerWl433 extends utils.Adapter {
                 await device.set({ multiple: true, data, shouldWaitForResponse: false });
                 this.log.debug(
                     `[queue] ${ids} sent ${wl433.description} as ${wl433.frame.hex}, waited ${formatDuration(sentAt - batch[0].queuedAt)} in queue` +
-                        `${wl433.internal ? "" : Object.keys(wl433.update).length ? ", waiting for the status of the gateway" : ", not visible in the status of the gateway"}`,
+                        `${wl433.internal ? "" : wl433.dmx !== undefined ? ", waiting for the DMX answer of the gateway" : Object.keys(wl433.update).length ? ", waiting for the status of the gateway" : ", not visible in the status of the gateway"}`,
                 );
                 await this.onWl433Sent(batch[0], wl433, sentAt);
             } else {
@@ -1992,6 +2074,10 @@ class MiboxerWl433 extends utils.Adapter {
             return;
         }
         await this.addToHistory(wl433.frame, "tx", sentAt);
+        if (wl433.dmx !== undefined) {
+            this.waitForDmxAnswer(command.seq, wl433.dmx, sentAt);
+            return;
+        }
         if (!Object.keys(wl433.update).length) {
             return;
         }
@@ -2051,6 +2137,395 @@ class MiboxerWl433 extends utils.Adapter {
         }
         this.pendingConfirmations = [];
         this.confirmationQueryAsked = false;
+    }
+
+    // ------------------------------------------------------------------ timers
+
+    /** Reads the timers of the instance settings and plans their next runs. */
+    private async setupTimers(): Promise<void> {
+        const configured = toList(this.config.timers) as TimerConfig[];
+        if (configured.length > MAX_TIMERS) {
+            this.log.warn(
+                `[timer] ${configured.length} timers configured, only the first ${MAX_TIMERS} are used - please delete the others in the instance settings`,
+            );
+        }
+        const active = await this.getStateAsync("timers.active");
+        this.timersActive = active?.val !== false;
+        this.position = await this.readPosition();
+        this.timers = [];
+        this.timerErrors.clear();
+        configured.slice(0, MAX_TIMERS).forEach((config, position) => {
+            const index = position + 1;
+            if (config?.enabled === false) {
+                this.log.debug(`[timer] Timer ${index} "${configName(config)}" is disabled`);
+                return;
+            }
+            const result = parseTimer(config ?? {}, index);
+            if ("error" in result) {
+                this.timerErrors.set(index, result.error);
+                this.log.warn(
+                    `[timer] Timer ${index} "${configName(config)}" is ignored: ${result.error}. Please correct it in the instance settings (tab Timers)`,
+                );
+                return;
+            }
+            const timer = result.timer;
+            if (timer.trigger !== "time" && !this.position) {
+                const error = `uses the sun event "${timer.trigger}", but no position is set in the ioBroker system settings`;
+                this.timerErrors.set(index, error);
+                this.log.warn(
+                    `[timer] Timer ${index} "${timer.name}" ${error} (System settings: latitude and longitude). The timer is ignored`,
+                );
+                return;
+            }
+            this.timers.push(timer);
+        });
+        this.log.info(
+            `[timer] ${this.timers.length} timer(s) active${this.timerErrors.size ? `, ${this.timerErrors.size} ignored because of errors` : ""}` +
+                `${this.timersActive ? "" : ", all timers are paused (timers.active = false)"}`,
+        );
+        for (const timer of this.timers) {
+            this.log.debug(
+                `[timer] Timer ${timer.index} "${timer.name}": ${describeSchedule(timer)} -> ${describeAction(timer)}`,
+            );
+            this.scheduleTimer(timer, new Date());
+        }
+        await this.updateTimerStates();
+    }
+
+    /** Reads the geographic position from the ioBroker system settings (needed for sun events). */
+    private async readPosition(): Promise<GeoPosition | undefined> {
+        const needed = (toList(this.config.timers) as TimerConfig[]).some(
+            timer =>
+                typeof timer?.trigger === "string" && (ASTRO_TRIGGERS as readonly string[]).includes(timer.trigger),
+        );
+        if (!needed) {
+            return undefined;
+        }
+        try {
+            const config = await this.getForeignObjectAsync("system.config");
+            const latitude = Number((config?.common as { latitude?: unknown } | undefined)?.latitude);
+            const longitude = Number((config?.common as { longitude?: unknown } | undefined)?.longitude);
+            if (Number.isFinite(latitude) && Number.isFinite(longitude) && (latitude || longitude)) {
+                this.log.debug(`[timer] Position for sun events: latitude ${latitude}, longitude ${longitude}`);
+                return { latitude, longitude };
+            }
+            this.log.debug("[timer] No position in the system settings");
+        } catch (error) {
+            this.log.debug(`[timer] Cannot read the system settings: ${errorText(error)}`);
+        }
+        return undefined;
+    }
+
+    /**
+     * Plans the next run of a timer.
+     *
+     * @param timer - validated timer
+     * @param after - the run must be later than this
+     */
+    private scheduleTimer(timer: Timer, after: Date): void {
+        this.clearTimeoutOf(this.timerTimeouts, timer.index);
+        const run = nextRun(timer, after, this.position);
+        this.timerRuns.set(timer.index, run);
+        if (!run) {
+            this.log.warn(
+                `[timer] Timer ${timer.index} "${timer.name}" has no run within the next year (${describeSchedule(timer)}), please check weekdays and season`,
+            );
+            return;
+        }
+        const shifts = [
+            timer.offset ? `offset ${timer.offset} min` : "",
+            run.randomShift ? `random ${run.randomShift > 0 ? "+" : ""}${run.randomShift} min` : "",
+        ].filter(Boolean);
+        this.log.debug(
+            `[timer] Timer ${timer.index} "${timer.name}" next run ${formatLocal(run.at)}` +
+                `${timer.trigger === "time" ? "" : ` (${timer.trigger} ${formatLocal(run.base)})`}${shifts.length ? `, ${shifts.join(", ")}` : ""}`,
+        );
+        this.armTimer(timer, run);
+    }
+
+    private armTimer(timer: Timer, run: NextRun): void {
+        const wait = Math.min(Math.max(run.at.getTime() - Date.now(), 0), MAX_TIMER_WAIT_MS);
+        const timeout = this.setTimeout(() => void this.runTimer(timer, run), wait);
+        if (timeout) {
+            this.timerTimeouts.set(timer.index, timeout);
+        }
+    }
+
+    private async runTimer(timer: Timer, run: NextRun): Promise<void> {
+        this.timerTimeouts.delete(timer.index);
+        if (this.unloading) {
+            return;
+        }
+        const now = Date.now();
+        if (now < run.at.getTime() - 1000) {
+            // a long wait was split, keep waiting
+            this.log.debug(
+                `[timer] Timer ${timer.index} "${timer.name}": ${formatDuration(run.at.getTime() - now)} until ${formatLocal(run.at)}, waiting further`,
+            );
+            this.armTimer(timer, run);
+            return;
+        }
+        if (!this.timersActive) {
+            this.log.debug(
+                `[timer] Timer ${timer.index} "${timer.name}" skipped: all timers are paused (timers.active)`,
+            );
+        } else {
+            await this.executeTimer(timer, run);
+        }
+        this.scheduleTimer(timer, new Date(Math.max(now, run.at.getTime()) + 1000));
+        await this.updateTimerStates();
+    }
+
+    /**
+     * Where the commands of a timer go: the zone channel in the zone mode "channels", otherwise light.* with the
+     * zone of the timer (the zone selector light.zone is not changed).
+     *
+     * @param zone - zone of the timer, 0 = all zones
+     */
+    private timerTarget(zone: number): Target {
+        const isZoneChannel = this.zoneMode === "channels" && zone !== ZONE_ALL;
+        return { channel: isZoneChannel ? zoneChannelId(zone) : "light", zone, isZoneChannel };
+    }
+
+    /**
+     * Executes the action of a timer.
+     *
+     * @param timer - validated timer
+     * @param run - the run that is due
+     */
+    private async executeTimer(timer: Timer, run: NextRun): Promise<void> {
+        const seq = ++this.commandSeq;
+        const source = `timer ${timer.index} "${timer.name}"`;
+        const late = Date.now() - run.at.getTime();
+        this.log.debug(
+            `[timer] #${seq} Timer ${timer.index} "${timer.name}" runs (planned ${formatLocal(run.at)}${late > 2000 ? `, ${formatDuration(late)} late` : ""}): ${describeAction(timer)}`,
+        );
+        const fields: [string, ioBroker.StateValue][] = [];
+        switch (timer.action) {
+            case "on":
+                fields.push(["on", true]);
+                break;
+            case "off":
+                fields.push(["on", false]);
+                break;
+            case "white":
+                fields.push(["colorTemperature", timer.temperature ?? 0]);
+                break;
+            case "colour":
+                fields.push(["color", timer.color ?? ""]);
+                break;
+            case "scene":
+                fields.push(["scene", timer.scene ?? 1]);
+                break;
+            case "brightness":
+                break;
+        }
+        if (timer.action !== "off" && timer.brightness !== undefined) {
+            fields.push(["brightness", timer.brightness]);
+        }
+        const target = this.timerTarget(timer.zone);
+        try {
+            for (const [field, value] of fields) {
+                this.sendField(seq, source, target, field, value);
+            }
+            if (this.timerProblemReported) {
+                this.log.info("[timer] Timers are executed again");
+                this.timerProblemReported = false;
+            }
+        } catch (error) {
+            const text = `[timer] #${seq} Timer ${timer.index} "${timer.name}" could not switch the lights: ${errorText(error)}`;
+            if (this.timerProblemReported) {
+                this.log.debug(text);
+            } else {
+                this.timerProblemReported = true;
+                this.log.warn(text);
+            }
+            this.log.debug(`[timer] #${seq} ${errorStack(error)}`);
+            return;
+        }
+        await this.setState(
+            "timers.lastRun",
+            `${formatLocal(new Date())} · ${timer.name} (${describeAction(timer)})`,
+            true,
+        );
+        this.clearTimeoutOf(this.timerOffTimeouts, timer.index);
+        if (timer.action !== "off" && timer.duration > 0) {
+            this.log.debug(
+                `[timer] #${seq} Timer ${timer.index} "${timer.name}" switches off again in ${timer.duration} min`,
+            );
+            const timeout = this.setTimeout(() => void this.executeTimerOff(timer), timer.duration * 60_000);
+            if (timeout) {
+                this.timerOffTimeouts.set(timer.index, timeout);
+            }
+        }
+    }
+
+    /**
+     * Switches off at the end of the duration of a timer. Runs also while the timers are paused, because the timer
+     * has already switched on.
+     *
+     * @param timer - validated timer
+     */
+    private async executeTimerOff(timer: Timer): Promise<void> {
+        this.timerOffTimeouts.delete(timer.index);
+        if (this.unloading) {
+            return;
+        }
+        const seq = ++this.commandSeq;
+        const source = `timer ${timer.index} "${timer.name}" (end of ${timer.duration} min)`;
+        this.log.debug(`[timer] #${seq} ${source}: switching off ${timer.zone ? `zone ${timer.zone}` : "all zones"}`);
+        try {
+            this.sendField(seq, source, this.timerTarget(timer.zone), "on", false);
+            await this.setState(
+                "timers.lastRun",
+                `${formatLocal(new Date())} · ${timer.name} (off after ${timer.duration} min)`,
+                true,
+            );
+        } catch (error) {
+            this.log.warn(`[timer] #${seq} ${source} could not switch off the lights: ${errorText(error)}`);
+            this.log.debug(`[timer] #${seq} ${errorStack(error)}`);
+        }
+    }
+
+    /** Writes timers.nextRun and timers.overview. */
+    private async updateTimerStates(): Promise<void> {
+        let next: { at: Date; timer: Timer } | undefined;
+        for (const timer of this.timers) {
+            const run = this.timerRuns.get(timer.index);
+            if (run && (!next || run.at < next.at)) {
+                next = { at: run.at, timer };
+            }
+        }
+        const nextText = next ? `${formatLocal(next.at)} · ${next.timer.name}` : "";
+        await this.setStateChangedAsync(
+            "timers.nextRun",
+            this.timersActive || !nextText ? nextText : `paused (${nextText})`,
+            true,
+        );
+        const configured = toList(this.config.timers) as TimerConfig[];
+        const overview = configured.slice(0, MAX_TIMERS).map((config, position) => {
+            const index = position + 1;
+            const timer = this.timers.find(entry => entry.index === index);
+            const run = this.timerRuns.get(index);
+            return {
+                index,
+                name: timer?.name ?? (configName(config) || `Timer ${index}`),
+                enabled: config?.enabled !== false,
+                schedule: timer ? describeSchedule(timer) : undefined,
+                action: timer ? describeAction(timer) : undefined,
+                nextRun: timer && run ? formatLocal(run.at) : null,
+                error: this.timerErrors.get(index),
+            };
+        });
+        await this.setStateChangedAsync("timers.overview", JSON.stringify(overview), true);
+    }
+
+    private async setTimersActive(seq: number, active: boolean): Promise<void> {
+        this.timersActive = active;
+        await this.setState("timers.active", active, true);
+        this.log.info(`[timer] #${seq} All timers ${active ? "active again" : "paused"} (timers.active = ${active})`);
+        await this.updateTimerStates();
+    }
+
+    private clearTimeoutOf(map: Map<number, ioBroker.Timeout>, index: number): void {
+        const timeout = map.get(index);
+        if (timeout) {
+            this.clearTimeout(timeout);
+            map.delete(index);
+        }
+    }
+
+    private clearAllTimers(): void {
+        for (const map of [this.timerTimeouts, this.timerOffTimeouts]) {
+            for (const timeout of map.values()) {
+                this.clearTimeout(timeout);
+            }
+            map.clear();
+        }
+    }
+
+    // ------------------------------------------------------------------ DMX start address
+
+    /**
+     * Sends a new DMX start address. It applies to the zone of light.* (zone selector) or all zones.
+     *
+     * @param seq - command number
+     * @param source - state ID
+     * @param val - new address
+     */
+    private setDmxAddress(seq: number, source: string, val: ioBroker.StateValue): void {
+        const address = toNumber(val);
+        if (!Number.isInteger(address) || address < DMX_ADDRESS_MIN || address > DMX_ADDRESS_MAX) {
+            throw new Error(`a DMX start address from ${DMX_ADDRESS_MIN} to ${DMX_ADDRESS_MAX} is expected`);
+        }
+        const zone = this.zoneMode === "selector" ? this.selectedZone : ZONE_ALL;
+        const frame = buildDmxCommand(address, zone);
+        const description = `DMX start address ${address} (${zone === ZONE_ALL ? "all zones" : `zone ${zone}`})`;
+        this.log.debug(`[cmd] #${seq} ${source} -> ${description}`);
+        this.enqueueWl433(seq, source, [
+            { frame, zone, description, key: "dmx", update: {}, internal: false, dmx: address },
+        ]);
+    }
+
+    private waitForDmxAnswer(seq: number, address: number, sentAt: number): void {
+        this.pendingDmx = { seq, address, sentAt };
+        if (this.dmxTimer) {
+            this.clearTimeout(this.dmxTimer);
+        }
+        this.dmxTimer = this.setTimeout(() => {
+            this.dmxTimer = undefined;
+            const pending = this.pendingDmx;
+            this.pendingDmx = undefined;
+            if (pending) {
+                this.log.warn(
+                    `[cmd] #${pending.seq} settings.dmxAddress: the gateway did not confirm the DMX start address ${pending.address} within ${formatDuration(DMX_ANSWER_TIMEOUT_MS)}`,
+                );
+            }
+        }, DMX_ANSWER_TIMEOUT_MS);
+    }
+
+    /**
+     * The gateway confirmed a DMX start address (also when it was changed in the MiBoxer app).
+     *
+     * @param address - confirmed address
+     */
+    private async onDmxAnswer(address: number): Promise<void> {
+        const pending = this.pendingDmx;
+        if (pending && pending.address === address) {
+            this.log.debug(
+                `[cmd] #${pending.seq} DMX start address ${address} confirmed by the gateway after ${formatDuration(Date.now() - pending.sentAt)}`,
+            );
+            this.pendingDmx = undefined;
+            if (this.dmxTimer) {
+                this.clearTimeout(this.dmxTimer);
+                this.dmxTimer = undefined;
+            }
+        } else {
+            this.log.debug(`[rx] DMX start address ${address} reported by the gateway (changed by the app?)`);
+        }
+        this.dmxAddress = address;
+        await this.setStateChangedAsync("settings.dmxAddress", address, true);
+    }
+
+    /**
+     * The status contains the low byte of the DMX start address. It is taken over unless it matches the known
+     * address (addresses above 255 are only known from the DMX answers).
+     *
+     * @param lowByte - byte 10 of the status
+     */
+    private async onDmxLowByte(lowByte: number): Promise<void> {
+        if (this.dmxAddress !== undefined && (this.dmxAddress & 0xff) === lowByte) {
+            return;
+        }
+        if (lowByte < DMX_ADDRESS_MIN) {
+            this.log.debug(`[rx] Status reports DMX low byte ${lowByte}, not a valid address, ignored`);
+            return;
+        }
+        this.log.debug(
+            `[rx] DMX start address ${lowByte} from the status${this.dmxAddress === undefined ? "" : ` (was ${this.dmxAddress})`}`,
+        );
+        this.dmxAddress = lowByte;
+        await this.setStateChangedAsync("settings.dmxAddress", lowByte, true);
     }
 }
 

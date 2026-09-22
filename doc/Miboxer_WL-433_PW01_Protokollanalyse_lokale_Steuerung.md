@@ -8,7 +8,7 @@ lang: de
 
 # Miboxer WL-433 + PW01 – Lokale Steuerung ohne Cloud, Protokollanalyse und ioBroker-Integration
 
-**Recherchebericht, Stand 21.09.2026 – Nachtrag 22.09.2026: Datenpunkt 101 vollständig entschlüsselt (Kapitel 3.1.8)**
+**Recherchebericht, Stand 21.09.2026 – Nachtrag 22.09.2026: Datenpunkt 101 vollständig entschlüsselt (Kapitel 3.1.8), DMX-Startadresse, Taste `06 05` und Timer der App (Kapitel 3.1.9)**
 
 Untersuchte Geräte: Miboxer **PW01** (27 W RGB+CCT PAR56 LED-Poolleuchte, LoRa 433 MHz) und Miboxer **WL-433** (LoRa-433-MHz-Gateway, WLAN 802.11b/g/n, DMX512-Eingang). Hersteller: Shenzhen Futlight Optoelectronics Co., Ltd. (Marken „Mi-Light“ / „MiBoxer“).
 
@@ -274,21 +274,41 @@ Zone (Byte 9): `00` = alle Zonen („ALL“), `01`–`08` = Zone 1–8 [E2]. Die
 
 | Byte | 0 | 1–3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Inhalt | `42` Änderungsmeldung / `44` Antwort auf 0x43 | `00 00 00` | Modus: `00` aus, `01` Farbe, `02` Weiß, `03`–`0B` M1–M9 | Farbton | Farbtemperaturstufe | Helligkeit % | Sättigung % (im Weißmodus `00`) | `0B` | `01` | Prüfsumme |
+| Inhalt | `42` Änderungsmeldung / `44` Antwort auf 0x43 | `00 00 00` | Modus: `00` aus, `01` Farbe, `02` Weiß, `03`–`0B` M1–M9 | Farbton | Farbtemperaturstufe | Helligkeit % | Sättigung % (im Weißmodus `00`) | `0B` | DMX-Startadresse, unteres Byte (siehe 3.1.9) | Prüfsumme |
 
 Belege [E1]: Helligkeitsregler im Weißmodus min/mittel/max → Byte 7 = `01` / `2F` / `64` bei DP 22 = 10 / 470 / 1000; Farbtemperatur warm/mittel/kalt → Byte 6 = `00` / `11`–`12` / `26` bei DP 23 = 0 / 440–490 / 1000; Sättigung max/mittel → Byte 8 = `64` / `2F`; Ein/Aus → Byte 4 = `01` ↔ `00`; M1/M2/M3 → Byte 4 = `03` / `04` / `05`; die App zeigte dabei die Werte 1:1 an (Farbe „rgb251“ = Byte 5 `FB`, Sättigung 86 % = Byte 8 `56`, 6500 K = Byte 6 `26`). Die Änderungsmeldung 0x42 kommt etwa 2,5 s nach der letzten Änderung; einzelne Frames werden nach etwa 2 s wiederholt.
 
 **Weitere Befunde [E1][E2]:**
 
-- **Ein Status für alle Zonen.** Der Status enthält keine Zone; die Bytes 1–3, 9 und 10 waren in allen Mitschnitten konstant. Das Gateway führt nur den zuletzt gesetzten Zustand, unabhängig von der Zone – auch die App zeigt keinen Unterschied zwischen den Zonen.
+- **Ein Status für alle Zonen.** Der Status enthält keine Zone; die Bytes 1–3 und 9 waren in allen Mitschnitten konstant, Byte 10 ändert sich nur mit der DMX-Startadresse (3.1.9). Das Gateway führt nur den zuletzt gesetzten Zustand, unabhängig von der Zone – auch die App zeigt keinen Unterschied zwischen den Zonen.
 - **Abgeleitete Standard-Datenpunkte.** DP 20–23 erzeugt das Gateway aus den DP-101-Befehlen (DP 22 = Helligkeit × 10, DP 23 ≈ Stufe × 26). Nach einem Moduswechsel sendet es DP 22 nicht neu; solange das Licht aus ist, meldet DP 21 „white“.
 - **DP 24 wird von der App nicht verwendet.** Ein Schreibversuch mit `007803e803e8` (Grün, v2-Format) wurde vom Gateway zurückgemeldet, änderte aber den Farbton nicht und setzte die Sättigung auf 0.
 - **Unbekannte Frame-Typen werden verworfen.** Ein nach dem Statusmuster gebauter Frame mit Typ 0x42 und `80` in Byte 10 blieb ohne Reaktion.
 - **Geschwindigkeit nicht im Status.** S+ und S- lösen nur eine unveränderte Statusmeldung aus.
 - **Zwei lokale Verbindungen.** Während der Mitschnitte waren der Adapter und die App gleichzeitig per LAN mit dem Gateway verbunden; die App wich zeitweise auf die Cloud (MQTT) aus.
-- **Noch unbekannt:** Frame-Typ 0x49 aus [C1] (`49 00 00 0B 02 00 01 00 00 00 80`) und Tastencode `06 05`.
+- **Frame-Typ 0x49 und Tastencode `06 05`:** am Nachmittag geklärt, siehe 3.1.9.
 
 **Verifikation.** Der Adapter ab Version 0.1.0 sendet diese Befehle selbst. Am echten Gateway wurden Helligkeit (alle Zonen), Farbe (Farbton + Sättigung), Szene M2, Weiß 3000 K in Zone 1 und Helligkeit in Zone 2 gesetzt und jeweils nach etwa 2,7 s durch die Statusmeldung bestätigt [E1].
+
+#### 3.1.9 DMX-Startadresse, Taste `06 05` und Timer der App (Nachtrag 22.09.2026, Nachmittag)
+
+Die Untersuchung wurde mit derselben Methode fortgesetzt (eine Aktion je Schritt, Mitschnitt des Adapters [E1] und der App [E2]).
+
+**DMX-Startadresse, Typ 0x49.** Das einzige Einstellungsmenü der App heißt „DMX einstellen“. Es setzt die Startadresse des DMX512-Eingangs (3.2.2). Der Anwender stellte in der App mit gewählter Zone 2 die Adresse erst auf 123 und dann zurück [E2]:
+
+| Richtung | Frame | Bedeutung |
+|---|---|---|
+| App → Gateway | `49 00 00 0B 02 00 7B 00 00 02 80 53` | Adresse 123 (Bytes 5–6 = `00 7B`), Zone 2 (Byte 9) |
+| Gateway → App | `49 00 00 0B 02 01 03 28 00 00 7B FD` | Byte 5 `01` = übernommen; Bytes 6–8 = Farbtemperaturstufe 3, Helligkeit 40 %, Sättigung 0; Bytes 9–10 = Adresse 123 |
+| Gateway → App (Status) | `44 00 00 00 02 AB 03 28 00 0B 7B` + Prüfsumme | Byte 10 des Statusframes = unteres Byte der Adresse (vorher `01` = Adresse 1) |
+
+Damit ist auch der Frame aus [C1] erklärt: `49 00 00 0B 02 00 01 00 00 00 80` setzt Adresse 1 für alle Zonen, die Antwort `49 00 00 0B 02 01 00 01 00 00 01` bestätigt sie. Befehlsformat: `49 00 00 0B 02 <Adresse high> <Adresse low> 00 00 <Zone> 80 <Prüfsumme>`. Adressen über 255 (oberes Byte ≠ 0) wurden am echten Gerät nicht gesetzt; das Format folgt aus der Zweibyte-Darstellung **[Inferenz]**. Der Statusframe enthält nur das untere Byte – eine Adresse über 255 ist deshalb nur aus der 0x49-Antwort vollständig ablesbar. Der Adapter bietet die Adresse ab Version 0.2.0 als Datenpunkt `settings.dmxAddress` an. Am echten Gateway geprüft [E1]: `49 00 00 0B 02 00 03 00 00 00 80 D9` (Adresse 3, alle Zonen) wurde nach 374 ms mit `49 00 00 0B 02 01 03 32 00 00 03 8F` bestätigt, der nächste Status meldete Byte 10 = `03`; `49 00 00 0B 02 00 02 00 00 00 80 D8` (zurück auf 2) wurde nach 348 ms bestätigt, Status-Byte 10 danach wieder `02`.
+
+**Taste `06 05`.** Vom Adapter an alle Zonen gesendet (`41 00 00 0B 06 05 00 00 00 00 80 D7`): Die Leuchten gingen aus (DP 20 = false, Statusmodus `00`); ein zweites `06 05` ließ sie aus [E1]. Die Taste schaltet also nicht um, sondern ist eine zweite Aus-Variante. Bei anderen Mi-Light-Fernbedienungen ist ein solcher Code häufig das „Nachtlicht“ **[Inferenz]** – das ließ sich nicht prüfen, weil der Anwender die Leuchten bei den Tests nicht sehen konnte. Der Adapter verwendet die Taste nicht.
+
+**Timer der App.** Die App speichert Timer **in der Tuya-Cloud** [E2]: Sie ruft die Cloud-Schnittstellen `tuya.m.timer.group.list` und `tuya.m.timer.group.add` auf (Kategorie `mi-light-timer`). Ein am 22.09.2026 angelegter Timer „Montag bis Mittwoch 13:40 einschalten“ bestand aus `time` = `13:40`, `loops` = `0111000` (sieben Stellen Sonntag bis Samstag), der Zeitzone und dem Befehl `instruct` = `[{"dps":{"20":true},"time":"13:40"}]`. Er schreibt also den Standard-Datenpunkt 20 – ohne Zone und ohne DP 101. Um 13:40:07 meldete das Gateway DP 20 = true und 2,4 s später einen 0x42-Status; der Adapter übernahm die Änderung wie jede andere [E1]. Folgerungen: Die Timer der App brauchen Internet, sind lokal weder lesbar noch änderbar und können nur alle Zonen gemeinsam ein- oder ausschalten.
+
+**Lokale Timer im Adapter.** Als cloudfreier Ersatz enthält der Adapter ab Version 0.2.0 bis zu 50 eigene Timer (Uhrzeit oder Sonnenereignis nach suncalc mit Verschiebung und Zufallsabweichung, Wochentage, Saison, Zone, jede Lichtaktion, Ausschalten nach einer Dauer). Praxistest am echten Gateway [E1]: Ein Timer um 14:13:25 („alle Zonen: Weiß 3000 K, 50 %, nach 1 min aus“) sendete `41 00 00 0B 06 01 …` (ein), `41 00 00 0B 03 03 …` (Stufe 3 = 3000 K) und `41 00 00 0B 02 32 …` (50 %); der Status `42 00 00 00 02 AB 03 32 00 0B 02` bestätigte alle drei nach 2,7–3,0 s. Um 14:14:25 folgte `41 00 00 0B 06 02 …` (aus), bestätigt nach 2,7 s.
 
 ### 3.2 Schicht 2: DMX512-Eingang
 
@@ -303,10 +323,11 @@ Belege [E1]: Helligkeitsregler im Weißmodus min/mittel/max → Byte 7 = `01` / 
 - Das Gateway ist DMX-**Empfänger** („DMX512 signal input“) und belegt ab einer in der App gesetzten Startadresse fünf aufeinanderfolgende Kanäle in der Reihenfolge Rot, Grün, Blau, Kaltweiß, Warmweiß [H1].
 - Der Adressdialog enthält eine Zonenwahl („Click the 'Zone' on the left bottom into the Zone selection“) [H1]. **Nicht dokumentiert:** ob je Zone ein eigener 5-Kanal-Block existiert oder ob der eine Block an die gewählte Zone geleitet wird; welche Priorität DMX gegenüber App-/Fernbedienungsbefehlen hat; wie das Gateway den kontinuierlichen DMX-Strom (rechnerisch bis ≈ 44 Pakete/s bei 512 Slots, abgeleitet aus 250 kbit/s, 11 Bit je Slot sowie BREAK/MAB [S23][S27]) in einzelne Funktelegramme umsetzt (Relevanz für den Arbeitszyklus, siehe 3.3.7).
 - Händlerhinweis: „A separate DMX controller using standard DMX512 protocols is required for this feature.“ [H18].
+- Die Startadresse lässt sich auch lokal über DP 101 lesen und setzen (Frame-Typ 0x49, Status-Byte 10), siehe 3.1.9 [E1][E2].
 
 #### 3.2.3 Bewertung [Inferenz]
 
-DMX ist der **einzige vollständig cloudfreie und deterministische** Steuerpfad, der vom Hersteller dokumentiert ist. Preis: zusätzliche Hardware (Art-Net-Node + Kabel bis zum Gateway), voraussichtlich keine Zonentrennung, und die Adresse muss einmalig über die App gesetzt werden.
+DMX ist der **einzige vollständig cloudfreie und deterministische** Steuerpfad, der vom Hersteller dokumentiert ist. Preis: zusätzliche Hardware (Art-Net-Node + Kabel bis zum Gateway), voraussichtlich keine Zonentrennung, und die Adresse muss einmalig gesetzt werden – über die App oder lokal per DP 101 (3.1.9).
 
 ### 3.3 Schicht 3: LoRa 433 MHz
 
@@ -474,7 +495,7 @@ Ziel: mit minimalem Aufwand die drei offenen Fragen klären (1) spricht das WL-4
 |---|---|---|---|
 | 1 | Lässt sich das WL-433 in Tuya Smart / Smart Life pairen (und damit in `ioBroker.tuya` synchronisieren)? | Händler: ja [H16]; Hersteller: keine Aussage; Anwender: nicht über IoT-Plattform [C1] | Eigener Versuch (Prüfplan 3b) |
 | 2 | Enthält das synchronisierte Schema DP 101? | unbekannt | `ioBroker.tuya`-Log auf „Unknown datapoint 101“ prüfen [I2] |
-| 3 | Byte-Belegung von DP 101 | **gelöst** (22.09.2026): Befehle, Statusabfrage und Status entschlüsselt, siehe 3.1.8 [E1][E2]; offen nur Typ 0x49 und Taste `06 05` | – |
+| 3 | Byte-Belegung von DP 101 | **gelöst** (22.09.2026): Befehle, Statusabfrage und Status entschlüsselt, siehe 3.1.8 [E1][E2]; Typ 0x49 = DMX-Startadresse, siehe 3.1.9; offen nur die genaue Wirkung der Taste `06 05` (Sichtprüfung) | Sichtprüfung am Pool |
 | 4 | DMX-Steckertyp/Pinout, Zonenzuordnung, Priorität DMX vs. App | undokumentiert [H1] | Inspektion, Test |
 | 5 | LoRa-Chip und -Parameter | Behauptung SX1278 [R1], sonst nichts | FUT086 öffnen, SDR |
 | 6 | Betriebsspannung PW01 (DC 24 V vs. AC 12 V/DC 12–24 V) | widersprüchlich [H3][H4] | Hersteller |
@@ -585,8 +606,8 @@ Alle URLs wurden im Rahmen der Recherche (September 2026) abgerufen oder – wo 
 
 ### E – Eigene Messungen (Nachtrag 22.09.2026)
 
-- **[E1]** Mitschnitte der DP-101-Statusframes eines WL-433 (Tuya-Protokoll 3.3) mit dem Adapter ioBroker.miboxer-wl433 0.0.1 (`dp101.history`, Debug-Log) und Verifikation der Befehle mit Version 0.1.0, 22.09.2026.
-- **[E2]** Android-Systemprotokoll (`adb logcat`) der MiBoxer-App `com.futlight.miboxer` auf einem Android-13-Smartphone: Zeilen `ayxsendData =…`, `list value = …` und `publishDps()`, 22.09.2026.
+- **[E1]** Mitschnitte der DP-101-Statusframes eines WL-433 (Tuya-Protokoll 3.3) mit dem Adapter ioBroker.miboxer-wl433 0.0.1 (`dp101.history`, Debug-Log), Verifikation der Befehle mit Version 0.1.0 sowie DMX-Antworten, Taste `06 05`, Ausführung eines App-Timers und Praxistest der lokalen Timer mit Version 0.2.0, 22.09.2026.
+- **[E2]** Android-Systemprotokoll (`adb logcat`) der MiBoxer-App `com.futlight.miboxer` auf einem Android-13-Smartphone: Zeilen `ayxsendData =…`, `list value = …` und `publishDps()` sowie die Cloud-Aufrufe `tuya.m.timer.group.*` beim Anlegen eines Timers, 22.09.2026.
 
 ### S – Normen, Regulierung, Datenblätter, Patente, Fachliteratur
 

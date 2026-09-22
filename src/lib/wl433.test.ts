@@ -2,11 +2,13 @@ import { expect } from "chai";
 import { decodeDp101, encodeDp101Hex } from "./dp101";
 import {
     buildCommand,
+    buildDmxCommand,
     buildStatusQuery,
     COMMAND,
     describeCommand,
     describeStatus,
     KEY,
+    parseDmxAnswer,
     parseStatus,
     ZONE_ALL,
 } from "./wl433";
@@ -110,6 +112,32 @@ describe("wl433 => parseStatus", () => {
         expect(parseStatus(decodeDp101("QgAAAAH7JmQvCwEE"))).to.equal(null);
         expect(parseStatus(encodeDp101Hex("42 00 00 00 0C 49 12 64 56 0B 01").frame)).to.equal(null);
         expect(parseStatus(decodeDp101("AQID"))).to.equal(null);
+    });
+});
+
+describe("wl433 => DMX start address", () => {
+    it("builds the commands of the app (captured 2026-09-22, zone 2 selected)", () => {
+        expect(buildDmxCommand(123, 2).hex).to.equal("49 00 00 0B 02 00 7B 00 00 02 80 53");
+        expect(buildDmxCommand(300, 2).hex).to.equal("49 00 00 0B 02 01 2C 00 00 02 80 05");
+        expect(buildDmxCommand(1, 2).hex).to.equal("49 00 00 0B 02 00 01 00 00 02 80 D9");
+    });
+
+    it("rejects addresses outside 1..512", () => {
+        expect(() => buildDmxCommand(0, 0)).to.throw(RangeError);
+        expect(() => buildDmxCommand(513, 0)).to.throw(RangeError);
+    });
+
+    it("decodes the answers of the gateway", () => {
+        expect(parseDmxAnswer(encodeDp101Hex("49 00 00 0B 02 01 03 28 00 00 7B").frame)).to.equal(123);
+        expect(parseDmxAnswer(encodeDp101Hex("49 00 00 0B 02 01 03 28 00 01 2C").frame)).to.equal(300);
+        // the frame published in tinytuya #623
+        expect(parseDmxAnswer(encodeDp101Hex("49 00 00 0B 02 01 00 01 00 00 01").frame)).to.equal(1);
+        expect(parseDmxAnswer(buildDmxCommand(123, 2))).to.equal(null);
+        expect(parseDmxAnswer(decodeDp101("QgAAAAH7JmQvCwED"))).to.equal(null);
+    });
+
+    it("reads the low byte of the DMX address from the status", () => {
+        expect(parseStatus(encodeDp101Hex("44 00 00 00 02 AB 03 28 00 0B 7B").frame)?.dmxLowByte).to.equal(0x7b);
     });
 });
 

@@ -1,256 +1,699 @@
 {
     "i18n": true,
-    "type": "panel",
+    "type": "tabs",
     "items": {
-        "_headerGateway": {
-            "type": "header",
-            "text": "WL-433 gateway",
-            "size": 2,
-            "newLine": true
-        },
-        "_introText": {
-            "type": "staticText",
-            "text": "The gateway is controlled locally via the Tuya LAN protocol. Device ID and local key can be read from the debug log of the MiBoxer app (see README).",
-            "newLine": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 12,
-            "lg": 12,
-            "xl": 12
-        },
-        "_guideLink": {
-            "type": "staticLink",
-            "text": {
-                "en": "Guide: how to get the device ID and local key (German, for Android, iPhone and iPad)",
-                "de": "Anleitung: Geräte-ID und Local Key auslesen (für Android, iPhone und iPad)",
-                "ru": "Инструкция: как получить ID устройства и локальный ключ (на немецком, для Android, iPhone и iPad)",
-                "pt": "Guia: como obter o ID do dispositivo e a chave local (em alemão, para Android, iPhone e iPad)",
-                "nl": "Handleiding: apparaat-ID en lokale sleutel uitlezen (Duits, voor Android, iPhone en iPad)",
-                "fr": "Guide : obtenir l'ID de l'appareil et la clé locale (en allemand, pour Android, iPhone et iPad)",
-                "it": "Guida: come ottenere l'ID dispositivo e la chiave locale (in tedesco, per Android, iPhone e iPad)",
-                "es": "Guía: cómo obtener el ID del dispositivo y la clave local (en alemán, para Android, iPhone y iPad)",
-                "pl": "Instrukcja: jak odczytać ID urządzenia i klucz lokalny (po niemiecku, dla Androida, iPhone'a i iPada)",
-                "uk": "Інструкція: як отримати ID пристрою та локальний ключ (німецькою, для Android, iPhone та iPad)",
-                "zh-cn": "指南：如何获取设备 ID 和本地密钥（德语，适用于 Android、iPhone 和 iPad）"
-            },
-            "href": "https://github.com/ssbingo/ioBroker.miboxer-wl433/blob/main/doc/Anleitung_Geraete-ID_und_Local-Key_auslesen.md",
-            "target": "_blank",
-            "button": true,
-            "variant": "outlined",
-            "icon": "info",
-            "newLine": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 12,
-            "lg": 12,
-            "xl": 12
-        },
-        "deviceId": {
-            "type": "text",
-            "label": "Device ID",
-            "help": "Tuya device ID of the WL-433 gateway",
-            "newLine": true,
-            "trim": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 6,
-            "lg": 4,
-            "xl": 4
-        },
-        "localKey": {
-            "type": "password",
-            "label": "Local key",
-            "help": "16 characters, changes whenever the gateway is paired again",
-            "repeat": false,
-            "visible": true,
-            "maxLength": 16,
-            "xs": 12,
-            "sm": 12,
-            "md": 6,
-            "lg": 4,
-            "xl": 4
-        },
-        "ip": {
-            "type": "text",
-            "label": "IP address of the gateway",
-            "help": "Leave empty to find the gateway automatically in the local network",
-            "newLine": true,
-            "trim": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 6,
-            "lg": 4,
-            "xl": 4
-        },
-        "protocolVersion": {
-            "type": "select",
-            "label": "Tuya protocol version",
-            "help": "The WL-433 uses 3.3",
-            "options": [
-                {
-                    "label": "3.1",
-                    "value": "3.1"
+        "_gatewayTab": {
+            "type": "panel",
+            "label": "Gateway",
+            "items": {
+                "_headerGateway": {
+                    "type": "header",
+                    "text": "WL-433 gateway",
+                    "size": 2,
+                    "newLine": true
                 },
-                {
-                    "label": "3.3",
-                    "value": "3.3"
+                "_introText": {
+                    "type": "staticText",
+                    "text": "The gateway is controlled locally via the Tuya LAN protocol. Device ID and local key can be read from the debug log of the MiBoxer app (see README).",
+                    "newLine": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12
                 },
-                {
-                    "label": "3.4",
-                    "value": "3.4"
+                "_guideLink": {
+                    "type": "staticLink",
+                    "text": {
+                        "en": "Guide: how to get the device ID and local key (German, for Android, iPhone and iPad)",
+                        "de": "Anleitung: Geräte-ID und Local Key auslesen (für Android, iPhone und iPad)",
+                        "ru": "Инструкция: как получить ID устройства и локальный ключ (на немецком, для Android, iPhone и iPad)",
+                        "pt": "Guia: como obter o ID do dispositivo e a chave local (em alemão, para Android, iPhone e iPad)",
+                        "nl": "Handleiding: apparaat-ID en lokale sleutel uitlezen (Duits, voor Android, iPhone en iPad)",
+                        "fr": "Guide : obtenir l'ID de l'appareil et la clé locale (en allemand, pour Android, iPhone et iPad)",
+                        "it": "Guida: come ottenere l'ID dispositivo e la chiave locale (in tedesco, per Android, iPhone e iPad)",
+                        "es": "Guía: cómo obtener el ID del dispositivo y la clave local (en alemán, para Android, iPhone y iPad)",
+                        "pl": "Instrukcja: jak odczytać ID urządzenia i klucz lokalny (po niemiecku, dla Androida, iPhone'a i iPada)",
+                        "uk": "Інструкція: як отримати ID пристрою та локальний ключ (німецькою, для Android, iPhone та iPad)",
+                        "zh-cn": "指南：如何获取设备 ID 和本地密钥（德语，适用于 Android、iPhone 和 iPad）"
+                    },
+                    "href": "https://github.com/ssbingo/ioBroker.miboxer-wl433/blob/main/doc/Anleitung_Geraete-ID_und_Local-Key_auslesen.md",
+                    "target": "_blank",
+                    "button": true,
+                    "variant": "outlined",
+                    "icon": "info",
+                    "newLine": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12
                 },
-                {
-                    "label": "3.5",
-                    "value": "3.5"
+                "deviceId": {
+                    "type": "text",
+                    "label": "Device ID",
+                    "help": "Tuya device ID of the WL-433 gateway",
+                    "newLine": true,
+                    "trim": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "xl": 4
+                },
+                "localKey": {
+                    "type": "password",
+                    "label": "Local key",
+                    "help": "16 characters, changes whenever the gateway is paired again",
+                    "repeat": false,
+                    "visible": true,
+                    "maxLength": 16,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "xl": 4
+                },
+                "ip": {
+                    "type": "text",
+                    "label": "IP address of the gateway",
+                    "help": "Leave empty to find the gateway automatically in the local network",
+                    "newLine": true,
+                    "trim": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "xl": 4
+                },
+                "protocolVersion": {
+                    "type": "select",
+                    "label": "Tuya protocol version",
+                    "help": "The WL-433 uses 3.3",
+                    "options": [
+                        {
+                            "label": "3.1",
+                            "value": "3.1"
+                        },
+                        {
+                            "label": "3.3",
+                            "value": "3.3"
+                        },
+                        {
+                            "label": "3.4",
+                            "value": "3.4"
+                        },
+                        {
+                            "label": "3.5",
+                            "value": "3.5"
+                        }
+                    ],
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "xl": 4
+                },
+                "_discover": {
+                    "type": "sendTo",
+                    "label": "Search gateway in the local network",
+                    "command": "discover",
+                    "jsonData": "{\"deviceId\": \"${data.deviceId}\"}",
+                    "useNative": true,
+                    "showProcess": true,
+                    "timeout": 20000,
+                    "variant": "outlined",
+                    "result": {
+                        "found": "Gateway found at %s (protocol %s). IP address and protocol version have been entered, please save the settings.",
+                        "list": "Tuya devices in the local network: %s"
+                    },
+                    "error": {
+                        "noneFound": "No Tuya device announced itself in the local network. Is the gateway online and in the same network segment as ioBroker?",
+                        "notFoundOthers": "Gateway %s was not found. Other Tuya devices: %s"
+                    },
+                    "newLine": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "xl": 4
+                },
+                "_discoverHint": {
+                    "type": "staticText",
+                    "text": "The search needs a running adapter instance and takes up to 12 seconds. Without a device ID all Tuya devices found are listed.",
+                    "newLine": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12
+                },
+                "_headerConnection": {
+                    "type": "header",
+                    "text": "Connection",
+                    "size": 2,
+                    "newLine": true
+                },
+                "reconnectInterval": {
+                    "type": "number",
+                    "label": "Reconnect delay",
+                    "help": "Seconds until a lost or failed connection is retried",
+                    "min": 5,
+                    "max": 3600,
+                    "unit": "s",
+                    "newLine": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "xl": 4
+                },
+                "pollInterval": {
+                    "type": "number",
+                    "label": "Status refresh interval",
+                    "help": "Seconds between full status requests, 0 = only use the updates pushed by the gateway",
+                    "min": 0,
+                    "max": 3600,
+                    "unit": "s",
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "xl": 4
+                },
+                "_singleConnectionHint": {
+                    "type": "staticText",
+                    "text": "Tuya devices usually accept only one local connection. If the connection keeps failing, close the MiBoxer app on phones in the same network and do not control the gateway with other local integrations at the same time.",
+                    "newLine": true,
+                    "style": {
+                        "fontWeight": "bold"
+                    },
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12
+                },
+                "_headerZones": {
+                    "type": "header",
+                    "text": "Zones",
+                    "size": 2,
+                    "newLine": true
+                },
+                "zoneMode": {
+                    "type": "select",
+                    "label": "Zone control",
+                    "help": "How the 8 zones of the gateway are offered in ioBroker",
+                    "options": [
+                        {
+                            "label": "Zone selector (light.zone)",
+                            "value": "selector"
+                        },
+                        {
+                            "label": "One channel per zone (zones.zone1 … zones.zone8)",
+                            "value": "channels"
+                        }
+                    ],
+                    "newLine": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 6,
+                    "xl": 6
+                },
+                "_zoneModeSelectorText": {
+                    "type": "staticText",
+                    "text": "light.* shows the status reported by the gateway. The state light.zone selects the zone the commands of light.* are sent to (0 = all zones, 1–8 = one zone). Recommended, because every state shows what the gateway reports.",
+                    "hidden": "data.zoneMode === 'channels'",
+                    "newLine": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12
+                },
+                "_zoneModeChannelsText": {
+                    "type": "staticText",
+                    "text": "light.* shows the status reported by the gateway and sends its commands to all zones. In addition, the channels zones.zone1 … zones.zone8 control each zone separately. The gateway does not report a status per zone: a zone channel shows the last values sent to this zone and confirmed by the gateway.",
+                    "hidden": "data.zoneMode !== 'channels'",
+                    "newLine": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12
+                },
+                "_zoneModeHint": {
+                    "type": "staticText",
+                    "text": "The gateway reports only one status for all lamps: the last setting, whichever zone it was sent to. When this setting is changed, the states of the other variant are deleted.",
+                    "newLine": true,
+                    "style": {
+                        "fontWeight": "bold"
+                    },
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12
                 }
-            ],
-            "xs": 12,
-            "sm": 12,
-            "md": 6,
-            "lg": 4,
-            "xl": 4
+            }
         },
-        "_discover": {
-            "type": "sendTo",
-            "label": "Search gateway in the local network",
-            "command": "discover",
-            "jsonData": "{\"deviceId\": \"${data.deviceId}\"}",
-            "useNative": true,
-            "showProcess": true,
-            "timeout": 20000,
-            "variant": "outlined",
-            "result": {
-                "found": "Gateway found at %s (protocol %s). IP address and protocol version have been entered, please save the settings.",
-                "list": "Tuya devices in the local network: %s"
-            },
-            "error": {
-                "noneFound": "No Tuya device announced itself in the local network. Is the gateway online and in the same network segment as ioBroker?",
-                "notFoundOthers": "Gateway %s was not found. Other Tuya devices: %s"
-            },
-            "newLine": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 6,
-            "lg": 4,
-            "xl": 4
-        },
-        "_discoverHint": {
-            "type": "staticText",
-            "text": "The search needs a running adapter instance and takes up to 12 seconds. Without a device ID all Tuya devices found are listed.",
-            "newLine": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 12,
-            "lg": 12,
-            "xl": 12
-        },
-        "_headerConnection": {
-            "type": "header",
-            "text": "Connection",
-            "size": 2,
-            "newLine": true
-        },
-        "reconnectInterval": {
-            "type": "number",
-            "label": "Reconnect delay",
-            "help": "Seconds until a lost or failed connection is retried",
-            "min": 5,
-            "max": 3600,
-            "unit": "s",
-            "newLine": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 6,
-            "lg": 4,
-            "xl": 4
-        },
-        "pollInterval": {
-            "type": "number",
-            "label": "Status refresh interval",
-            "help": "Seconds between full status requests, 0 = only use the updates pushed by the gateway",
-            "min": 0,
-            "max": 3600,
-            "unit": "s",
-            "xs": 12,
-            "sm": 12,
-            "md": 6,
-            "lg": 4,
-            "xl": 4
-        },
-        "_singleConnectionHint": {
-            "type": "staticText",
-            "text": "Tuya devices usually accept only one local connection. If the connection keeps failing, close the MiBoxer app on phones in the same network and do not control the gateway with other local integrations at the same time.",
-            "newLine": true,
-            "style": {
-                "fontWeight": "bold"
-            },
-            "xs": 12,
-            "sm": 12,
-            "md": 12,
-            "lg": 12,
-            "xl": 12
-        },
-        "_headerZones": {
-            "type": "header",
-            "text": "Zones",
-            "size": 2,
-            "newLine": true
-        },
-        "zoneMode": {
-            "type": "select",
-            "label": "Zone control",
-            "help": "How the 8 zones of the gateway are offered in ioBroker",
-            "options": [
-                {
-                    "label": "Zone selector (light.zone)",
-                    "value": "selector"
+        "_timersTab": {
+            "type": "panel",
+            "label": "Timers",
+            "items": {
+                "_headerTimers": {
+                    "type": "header",
+                    "text": "Timers",
+                    "size": 2,
+                    "newLine": true
                 },
-                {
-                    "label": "One channel per zone (zones.zone1 … zones.zone8)",
-                    "value": "channels"
+                "_timersIntro": {
+                    "type": "staticText",
+                    "text": "Timers switch the pool lights at fixed times or with the sun. They run locally in ioBroker and also work without internet. The timers of the MiBoxer app run in the Tuya cloud and are independent of these. Up to 50 timers are used. Sun events need the position in the ioBroker system settings. The state timers.active pauses all timers.",
+                    "newLine": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12
+                },
+                "timers": {
+                    "type": "accordion",
+                    "titleAttr": "name",
+                    "clone": true,
+                    "newLine": true,
+                    "items": [
+                        {
+                            "attr": "enabled",
+                            "type": "checkbox",
+                            "label": "Active",
+                            "default": true,
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 2,
+                            "lg": 2,
+                            "xl": 2
+                        },
+                        {
+                            "attr": "name",
+                            "type": "text",
+                            "label": "Name",
+                            "default": "",
+                            "maxLength": 60,
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 10,
+                            "lg": 6,
+                            "xl": 6
+                        },
+                        {
+                            "attr": "trigger",
+                            "type": "select",
+                            "label": "Trigger",
+                            "default": "time",
+                            "newLine": true,
+                            "options": [
+                                {
+                                    "label": "Time of day",
+                                    "value": "time"
+                                },
+                                {
+                                    "label": "Dawn",
+                                    "value": "dawn"
+                                },
+                                {
+                                    "label": "Sunrise",
+                                    "value": "sunrise"
+                                },
+                                {
+                                    "label": "Golden hour (evening)",
+                                    "value": "goldenHour"
+                                },
+                                {
+                                    "label": "Sunset",
+                                    "value": "sunset"
+                                },
+                                {
+                                    "label": "Dusk",
+                                    "value": "dusk"
+                                },
+                                {
+                                    "label": "Night",
+                                    "value": "night"
+                                }
+                            ],
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "time",
+                            "type": "timePicker",
+                            "label": "Time of day",
+                            "default": "20:00:00",
+                            "format": "HH:mm",
+                            "views": [
+                                "hours",
+                                "minutes"
+                            ],
+                            "timeSteps": {
+                                "hours": 1,
+                                "minutes": 1
+                            },
+                            "returnFormat": "HH:mm:ss",
+                            "hidden": "data.trigger && data.trigger !== 'time'",
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "offset",
+                            "type": "number",
+                            "label": "Offset",
+                            "help": "minutes, negative = earlier",
+                            "default": 0,
+                            "min": -720,
+                            "max": 720,
+                            "unit": "min",
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "random",
+                            "type": "number",
+                            "label": "Random shift",
+                            "help": "up to ± minutes, 0 = exact (presence simulation)",
+                            "default": 0,
+                            "min": 0,
+                            "max": 120,
+                            "unit": "min",
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "days",
+                            "type": "select",
+                            "label": "Weekdays",
+                            "multiple": true,
+                            "newLine": true,
+                            "default": [
+                                1,
+                                2,
+                                3,
+                                4,
+                                5,
+                                6,
+                                7
+                            ],
+                            "options": [
+                                {
+                                    "label": "Monday",
+                                    "value": 1
+                                },
+                                {
+                                    "label": "Tuesday",
+                                    "value": 2
+                                },
+                                {
+                                    "label": "Wednesday",
+                                    "value": 3
+                                },
+                                {
+                                    "label": "Thursday",
+                                    "value": 4
+                                },
+                                {
+                                    "label": "Friday",
+                                    "value": 5
+                                },
+                                {
+                                    "label": "Saturday",
+                                    "value": 6
+                                },
+                                {
+                                    "label": "Sunday",
+                                    "value": 7
+                                }
+                            ],
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 6,
+                            "lg": 6,
+                            "xl": 6
+                        },
+                        {
+                            "attr": "seasonFrom",
+                            "type": "text",
+                            "label": "Season from",
+                            "help": "DD.MM., empty = all year",
+                            "placeholder": "01.05.",
+                            "default": "",
+                            "validator": "!data.seasonFrom || /^\\d{1,2}\\.\\d{1,2}\\.?$/.test(data.seasonFrom)",
+                            "validatorErrorText": "Format DD.MM., e.g. 01.05.",
+                            "validatorNoSaveOnError": true,
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 3,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "seasonTo",
+                            "type": "text",
+                            "label": "Season to",
+                            "help": "DD.MM.",
+                            "placeholder": "30.09.",
+                            "default": "",
+                            "validator": "!data.seasonTo || /^\\d{1,2}\\.\\d{1,2}\\.?$/.test(data.seasonTo)",
+                            "validatorErrorText": "Format DD.MM., e.g. 01.05.",
+                            "validatorNoSaveOnError": true,
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 3,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "zone",
+                            "type": "select",
+                            "label": "Zone",
+                            "default": 0,
+                            "newLine": true,
+                            "options": [
+                                {
+                                    "label": "All zones",
+                                    "value": 0
+                                },
+                                {
+                                    "label": "Zone 1",
+                                    "value": 1
+                                },
+                                {
+                                    "label": "Zone 2",
+                                    "value": 2
+                                },
+                                {
+                                    "label": "Zone 3",
+                                    "value": 3
+                                },
+                                {
+                                    "label": "Zone 4",
+                                    "value": 4
+                                },
+                                {
+                                    "label": "Zone 5",
+                                    "value": 5
+                                },
+                                {
+                                    "label": "Zone 6",
+                                    "value": 6
+                                },
+                                {
+                                    "label": "Zone 7",
+                                    "value": 7
+                                },
+                                {
+                                    "label": "Zone 8",
+                                    "value": 8
+                                }
+                            ],
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "action",
+                            "type": "select",
+                            "label": "Action",
+                            "default": "on",
+                            "options": [
+                                {
+                                    "label": "Switch on",
+                                    "value": "on"
+                                },
+                                {
+                                    "label": "Switch off",
+                                    "value": "off"
+                                },
+                                {
+                                    "label": "White light",
+                                    "value": "white"
+                                },
+                                {
+                                    "label": "Colour",
+                                    "value": "colour"
+                                },
+                                {
+                                    "label": "Scene",
+                                    "value": "scene"
+                                },
+                                {
+                                    "label": "Brightness only",
+                                    "value": "brightness"
+                                }
+                            ],
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "temperature",
+                            "type": "number",
+                            "label": "Colour temperature",
+                            "default": 4000,
+                            "min": 2700,
+                            "max": 6500,
+                            "step": 100,
+                            "unit": "K",
+                            "hidden": "data.action !== 'white'",
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "color",
+                            "type": "color",
+                            "label": "Colour",
+                            "default": "#0000ff",
+                            "hidden": "data.action !== 'colour'",
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "scene",
+                            "type": "select",
+                            "label": "Scene",
+                            "default": 1,
+                            "noTranslation": true,
+                            "hidden": "data.action !== 'scene'",
+                            "options": [
+                                {
+                                    "label": "M1",
+                                    "value": 1
+                                },
+                                {
+                                    "label": "M2",
+                                    "value": 2
+                                },
+                                {
+                                    "label": "M3",
+                                    "value": 3
+                                },
+                                {
+                                    "label": "M4",
+                                    "value": 4
+                                },
+                                {
+                                    "label": "M5",
+                                    "value": 5
+                                },
+                                {
+                                    "label": "M6",
+                                    "value": 6
+                                },
+                                {
+                                    "label": "M7",
+                                    "value": 7
+                                },
+                                {
+                                    "label": "M8",
+                                    "value": 8
+                                },
+                                {
+                                    "label": "M9",
+                                    "value": 9
+                                }
+                            ],
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "brightness",
+                            "type": "number",
+                            "label": "Brightness",
+                            "help": "1–100 %, empty = unchanged",
+                            "default": "",
+                            "min": 1,
+                            "max": 100,
+                            "unit": "%",
+                            "hidden": "data.action === 'off'",
+                            "newLine": true,
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        },
+                        {
+                            "attr": "duration",
+                            "type": "number",
+                            "label": "Switch off after",
+                            "help": "minutes, 0 = do not switch off",
+                            "default": 0,
+                            "min": 0,
+                            "max": 1440,
+                            "unit": "min",
+                            "hidden": "data.action === 'off'",
+                            "xs": 12,
+                            "sm": 12,
+                            "md": 4,
+                            "lg": 3,
+                            "xl": 3
+                        }
+                    ],
+                    "validator": "!data.timers || data.timers.length <= 50",
+                    "validatorErrorText": "At most 50 timers are used",
+                    "validatorNoSaveOnError": true,
+                    "xs": 12,
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12
                 }
-            ],
-            "newLine": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 6,
-            "lg": 6,
-            "xl": 6
-        },
-        "_zoneModeSelectorText": {
-            "type": "staticText",
-            "text": "light.* shows the status reported by the gateway. The state light.zone selects the zone the commands of light.* are sent to (0 = all zones, 1–8 = one zone). Recommended, because every state shows what the gateway reports.",
-            "hidden": "data.zoneMode === 'channels'",
-            "newLine": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 12,
-            "lg": 12,
-            "xl": 12
-        },
-        "_zoneModeChannelsText": {
-            "type": "staticText",
-            "text": "light.* shows the status reported by the gateway and sends its commands to all zones. In addition, the channels zones.zone1 … zones.zone8 control each zone separately. The gateway does not report a status per zone: a zone channel shows the last values sent to this zone and confirmed by the gateway.",
-            "hidden": "data.zoneMode !== 'channels'",
-            "newLine": true,
-            "xs": 12,
-            "sm": 12,
-            "md": 12,
-            "lg": 12,
-            "xl": 12
-        },
-        "_zoneModeHint": {
-            "type": "staticText",
-            "text": "The gateway reports only one status for all lamps: the last setting, whichever zone it was sent to. When this setting is changed, the states of the other variant are deleted.",
-            "newLine": true,
-            "style": {
-                "fontWeight": "bold"
-            },
-            "xs": 12,
-            "sm": 12,
-            "md": 12,
-            "lg": 12,
-            "xl": 12
+            }
         }
     }
 }

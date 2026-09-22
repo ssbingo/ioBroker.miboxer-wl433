@@ -31,6 +31,7 @@ function createLight() {
         sceneBrightness: 100,
         saturation: 100,
         speed: 5,
+        dmx: 1,
     };
 }
 
@@ -39,7 +40,14 @@ function statusFrame(light, type) {
     const brightness =
         mode === 0x01 ? light.colourBrightness : mode === 0x02 ? light.whiteBrightness : light.sceneBrightness;
     const saturation = mode === 0x01 ? light.saturation : mode === 0x02 ? 0 : mode === 0x03 ? 86 : 0;
-    return frame([type, 0, 0, 0, light.mode, light.hue, light.temperature, brightness, saturation, 0x0b, 0x01]);
+    return frame([type, 0, 0, 0, light.mode, light.hue, light.temperature, brightness, saturation, 0x0b, light.dmx & 0xff]);
+}
+
+function dmxAnswer(light) {
+    const mode = light.mode === 0 ? light.lastMode : light.mode;
+    const brightness =
+        mode === 0x01 ? light.colourBrightness : mode === 0x02 ? light.whiteBrightness : light.sceneBrightness;
+    return frame([0x49, 0, 0, 0x0b, 0x02, 0x01, light.temperature, brightness, 0, light.dmx >> 8, light.dmx & 0xff]);
 }
 
 function modeName(mode) {
@@ -149,6 +157,9 @@ function start(port = 6668, options = {}) {
         }
         if (bytes[0] === 0x43) {
             setTimeout(() => dev.push({ 101: statusFrame(light, 0x44) }), 20);
+        } else if (bytes[0] === 0x49 && bytes[4] === 0x02) {
+            light.dmx = (bytes[5] << 8) | bytes[6];
+            setTimeout(() => dev.push({ 101: dmxAnswer(light) }), 20);
         } else if (bytes[0] === 0x41) {
             const derived = applyCommand(light, bytes);
             if (Object.keys(derived).length) {

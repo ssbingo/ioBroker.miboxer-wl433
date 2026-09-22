@@ -35,7 +35,7 @@ function hexOf(dps) {
  * @param getHarness - harness factory of the suite
  * @param zoneMode - "selector" or "channels"
  */
-function setup(getHarness, zoneMode) {
+function setup(getHarness, zoneMode, extraNative = {}) {
     const ctx = {};
     ctx.st = async id => ctx.harness.states.getStateAsync(`${NS}.${id}`);
     ctx.set = async (id, val) => ctx.harness.states.setStateAsync(`${NS}.${id}`, { val, ack: false });
@@ -58,6 +58,8 @@ function setup(getHarness, zoneMode) {
                 reconnectInterval: 5,
                 pollInterval: 0,
                 zoneMode,
+                timers: [],
+                ...(typeof extraNative === "function" ? extraNative() : extraNative),
             },
         });
         await ctx.harness.startAdapterAndWait(true);
@@ -263,6 +265,78 @@ tests.integration(path.join(__dirname, "../.."), {
                 this.timeout(20000);
                 await harness.stopAdapter();
                 await waitFor(() => dev.sockets.size === 0, 5000, "socket closed");
+            });
+        });
+
+        suite("E2E against simulated WL-433, timers and DMX", getHarness => {
+            // a timer that fires 45 s after the start of this suite and switches off 3 s later
+            const ctx = setup(getHarness, "selector", () => {
+                const due = new Date(Date.now() + 45_000);
+                const pad = n => String(n).padStart(2, "0");
+                return {
+                    timers: [
+                        {
+                            enabled: true,
+                            name: "E2E white",
+                            trigger: "time",
+                            time: `${pad(due.getHours())}:${pad(due.getMinutes())}:${pad(due.getSeconds())}`,
+                            days: [1, 2, 3, 4, 5, 6, 7],
+                            zone: 3,
+                            action: "white",
+                            temperature: 3000,
+                            brightness: 50,
+                            duration: 0.05,
+                        },
+                        { enabled: true, name: "E2E broken", trigger: "time", time: "20:00:00", action: "colour", color: "" },
+                        { enabled: false, name: "E2E disabled", trigger: "time", time: "20:00:00" },
+                    ],
+                };
+            });
+            const { st, set, framesSince, acked } = ctx;
+            let dev;
+            beforeEach(() => {
+                dev = ctx.dev;
+            });
+
+            it("plans the valid timer and reports the broken one", async function () {
+                this.timeout(20000);
+                await waitFor(async () => (await st("dp101.hex"))?.val?.startsWith("44"), 10000, "status answer");
+                await waitFor(async () => (await st("timers.overview"))?.val?.includes("E2E white"), 10000, "overview");
+                const overview = JSON.parse((await st("timers.overview")).val);
+                expect(overview).to.have.length(3);
+                expect(overview[0].nextRun).to.be.a("string");
+                expect(overview[1].error).to.equal("action colour needs a colour like #0000ff");
+                expect(overview[2].enabled).to.equal(false);
+                expect((await st("timers.nextRun")).val).to.include("E2E white");
+            });
+
+            it("sets the DMX start address and takes it from the answer of the gateway", async function () {
+                this.timeout(15000);
+                const from = dev.received.length;
+                await set("settings.dmxAddress", 300);
+                await waitFor(() => acked("settings.dmxAddress", 300), 5000, "dmx ack");
+                expect(framesSince(from)).to.deep.equal(["49 00 00 0B 02 01 2C 00 00 00 80"]);
+                expect(dev.light.dmx).to.equal(300);
+            });
+
+            it("runs the timer at its time and switches off after the duration", async function () {
+                this.timeout(90000);
+                const from = dev.received.length;
+                await waitFor(async () => (await st("timers.lastRun"))?.val?.includes("E2E white"), 75000, "timer run");
+                await waitFor(() => framesSince(from).includes("41 00 00 0B 06 02 00 00 00 03 80"), 15000, "timer off");
+                const frames = framesSince(from);
+                expect(frames).to.include("41 00 00 0B 03 03 00 00 00 03 80");
+                expect(frames).to.include("41 00 00 0B 02 32 00 00 00 03 80");
+                expect((await st("light.zone")).val).to.equal(0);
+            });
+
+            it("pauses all timers with timers.active", async function () {
+                this.timeout(10000);
+                await set("timers.active", false);
+                await waitFor(() => acked("timers.active", false), 5000, "pause");
+                await waitFor(async () => (await st("timers.nextRun"))?.val?.startsWith("paused"), 5000, "paused text");
+                await set("timers.active", true);
+                await waitFor(() => acked("timers.active", true), 5000, "resume");
             });
         });
 

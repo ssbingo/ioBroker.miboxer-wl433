@@ -19,15 +19,19 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var wl433_exports = {};
 __export(wl433_exports, {
   COMMAND: () => COMMAND,
+  DMX_ADDRESS_MAX: () => DMX_ADDRESS_MAX,
+  DMX_ADDRESS_MIN: () => DMX_ADDRESS_MIN,
   FRAME_TYPE: () => FRAME_TYPE,
   KEY: () => KEY,
   SCENE_COUNT: () => SCENE_COUNT,
   ZONE_ALL: () => ZONE_ALL,
   ZONE_COUNT: () => ZONE_COUNT,
   buildCommand: () => buildCommand,
+  buildDmxCommand: () => buildDmxCommand,
   buildStatusQuery: () => buildStatusQuery,
   describeCommand: () => describeCommand,
   describeStatus: () => describeStatus,
+  parseDmxAnswer: () => parseDmxAnswer,
   parseStatus: () => parseStatus
 });
 module.exports = __toCommonJS(wl433_exports);
@@ -36,8 +40,11 @@ const FRAME_TYPE = {
   COMMAND: 65,
   REPORT: 66,
   QUERY: 67,
-  ANSWER: 68
+  ANSWER: 68,
+  DMX: 73
 };
+const DMX_ADDRESS_MIN = 1;
+const DMX_ADDRESS_MAX = 512;
 const COMMAND = {
   HUE: 1,
   BRIGHTNESS: 2,
@@ -70,7 +77,8 @@ const KEY_NAMES = {
   [KEY.OFF]: "off",
   [KEY.SPEED_DOWN]: "speed down (S-)",
   [KEY.SPEED_UP]: "speed up (S+)",
-  [KEY.WHITE]: "white mode"
+  [KEY.WHITE]: "white mode",
+  5: "off variant 05"
 };
 function byte(value, name, min, max) {
   if (!Number.isInteger(value) || value < min || value > max) {
@@ -114,6 +122,31 @@ function buildCommand(command, value, zone) {
   const extra = command === COMMAND.HUE ? value : 0;
   return (0, import_dp101.buildDp101Frame)([FRAME_TYPE.COMMAND, 0, 0, 11, command, value, extra, extra, extra, zone, 128]);
 }
+function buildDmxCommand(address, zone) {
+  byte(address, "DMX address", DMX_ADDRESS_MIN, DMX_ADDRESS_MAX);
+  byte(zone, "zone", ZONE_ALL, ZONE_COUNT);
+  return (0, import_dp101.buildDp101Frame)([
+    FRAME_TYPE.DMX,
+    0,
+    0,
+    11,
+    2,
+    address >> 8,
+    address & 255,
+    0,
+    0,
+    zone,
+    128
+  ]);
+}
+function parseDmxAnswer(frame) {
+  const bytes = frame.bytes;
+  if (!frame.checksumValid || bytes.length !== import_dp101.DP101_FRAME_LENGTH || bytes[0] !== FRAME_TYPE.DMX || bytes[5] !== 1) {
+    return null;
+  }
+  const address = bytes[9] << 8 | bytes[10];
+  return address >= DMX_ADDRESS_MIN && address <= DMX_ADDRESS_MAX ? address : null;
+}
 function buildStatusQuery() {
   return (0, import_dp101.buildDp101Frame)([FRAME_TYPE.QUERY, 0, 0, 128, 0, 0, 0, 0, 0, 128, 128]);
 }
@@ -148,6 +181,7 @@ function parseStatus(frame) {
     temperature: bytes[6],
     brightness: bytes[7],
     saturation: bytes[8],
+    dmxLowByte: bytes[10],
     signature: bytes.subarray(1, 11).toString("hex")
   };
 }
@@ -159,15 +193,19 @@ function describeStatus(status) {
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   COMMAND,
+  DMX_ADDRESS_MAX,
+  DMX_ADDRESS_MIN,
   FRAME_TYPE,
   KEY,
   SCENE_COUNT,
   ZONE_ALL,
   ZONE_COUNT,
   buildCommand,
+  buildDmxCommand,
   buildStatusQuery,
   describeCommand,
   describeStatus,
+  parseDmxAnswer,
   parseStatus
 });
 //# sourceMappingURL=wl433.js.map

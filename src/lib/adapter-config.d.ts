@@ -18,6 +18,8 @@ declare global {
             pollInterval: number;
             /** "selector" = zone selector state light.zone, "channels" = one channel per zone (zones.zone1..8) */
             zoneMode: string;
+            /** timers of the tab "Timers", see src/lib/timers.ts (TimerConfig) */
+            timers: Record<string, unknown>[];
         }
     }
 }

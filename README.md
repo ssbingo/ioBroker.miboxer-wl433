@@ -50,7 +50,8 @@ connects and at every status refresh.
 ioBroker (this adapter) ──LAN: Tuya protocol 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-**User manual** with every step explained for beginners (installation, settings, zones, examples, troubleshooting):
+**User manual** with every step explained for beginners (installation, settings, zones, timers, examples,
+troubleshooting):
 [English](doc/Manual_miboxer-wl433.md) ([PDF](doc/Manual_miboxer-wl433.pdf)) ·
 [Deutsch](doc/Handbuch_miboxer-wl433.md) ([PDF](doc/Handbuch_miboxer-wl433.pdf)).
 
@@ -85,7 +86,9 @@ gateway: [doc/Anleitung_PW01_mit_WL-433_verbinden.pdf](doc/Anleitung_PW01_mit_WL
 
 ### Configuration
 
-| Setting | Description |
+The instance settings have two tabs: **Gateway** (connection and zone control) and **Timers** (see [Timers](#timers)).
+
+| Setting (tab Gateway) | Description |
 | --- | --- |
 | Device ID | Tuya device ID of the WL-433 gateway |
 | Local key | 16-character Tuya local key (stored encrypted) |
@@ -109,6 +112,42 @@ does not show a separate status per zone either. The setting *Zone control* offe
 
 When the setting is changed, the states of the other variant are deleted.
 
+### Timers
+
+The tab **Timers** of the instance settings holds up to **50 timers**. They run locally in the adapter, also without
+internet, and can do more than the timers of the MiBoxer app: sun events with offset, random shift, season, zones,
+colours, scenes and switching off after a duration. Add a timer with **+**, open it to change it, copy or delete it with
+the buttons of the entry. Changes take effect when the settings are saved (the instance restarts).
+
+| Field | Description |
+| --- | --- |
+| Active | Switches this timer off without deleting it |
+| Name | Shown in the log and in `timers.overview` |
+| Trigger | *Time of day* or a sun event: dawn, sunrise, golden hour (evening), sunset, dusk, night |
+| Time of day | Only for the trigger *Time of day* |
+| Offset | Minutes (−720 to 720), negative = earlier — e.g. sunset −15 |
+| Random shift | Up to ± minutes (0–120), drawn anew for every run — for a presence simulation |
+| Weekdays | Days on which the timer runs |
+| Season from / to | `DD.MM.`, e.g. `01.05.` to `30.09.`; a season across the new year (`01.11.` to `28.02.`) works as well; empty = all year |
+| Zone | All zones or zone 1–8 |
+| Action | Switch on, switch off, white light (colour temperature 2700–6500 K), colour, scene M1–M9, brightness only |
+| Brightness | 1–100 %, empty = unchanged (not for *Switch off*) |
+| Switch off after | Minutes (0–1440), 0 = do not switch off (not for *Switch off*) |
+
+- **Sun events** are calculated from the position in the ioBroker system settings (latitude and longitude) with
+  [suncalc](https://github.com/mourner/suncalc). Without a position these timers are ignored with a warning. On days
+  without the event (polar regions) the timer does not run.
+- A timer sends the same commands as the states: in the zone mode *zone selector* to its zone (`light.zone` is not
+  changed), in the mode *one channel per zone* through `zones.zone<n>` (all zones: `light.*`). The gateway confirms
+  them like every command.
+- If the gateway is not connected when a timer is due, this run is skipped (warning in the log) — it is not repeated
+  later.
+- Timers with incomplete settings are ignored; the log and `timers.overview` name the reason.
+- The times are local times of the ioBroker system; daylight saving time is taken into account.
+- The **timers of the MiBoxer app** are stored and executed in the Tuya cloud (they only switch all zones on or off via
+  datapoint 20 and need internet). The adapter cannot read or change them, but it sees their effect in the status.
+  Both kinds of timers can be used at the same time.
+
 ### States
 
 | State | Description |
@@ -127,6 +166,11 @@ When the setting is changed, the states of the other variant are deleted.
 | `light.countdown` | Seconds until the gateway toggles the lamps (0 = off, standard datapoint 26) |
 | `light.zone` | Only with the zone selector: zone of the `light.*` commands, 0 = all zones, 1–8 |
 | `zones.zone<n>.*` | Only with one channel per zone: `on`, `mode`, `brightness`, `colorTemperature`, `color`, `hue`, `saturation`, `scene`, `speedUp`, `speedDown` for zone n |
+| `settings.dmxAddress` | Start address 1–512 of the gateway's DMX512 input – from there it uses 5 channels: red, green, blue, cold white, warm white (menu *DMX* in the app). Writing sends it to the zone of `light.zone` (zone selector) or to all zones; the gateway confirms it |
+| `timers.active` | `false` pauses all timers (e.g. during holidays or from a script), `true` runs them again |
+| `timers.nextRun` | Next timer run with the name of the timer (`paused (…)` while `timers.active` is `false`) |
+| `timers.lastRun` | Last timer run with name and action |
+| `timers.overview` | JSON list of all timers: schedule, action, next run, reason if the timer is ignored |
 | `dp101.raw` | Last datapoint 101 frame as Base64 — writing sends the value unchanged |
 | `dp101.hex` | Last datapoint 101 frame as hex bytes — writing sends the frame, the checksum is added or corrected automatically |
 | `dp101.checksumValid` | Checksum of the last frame is valid |
@@ -149,9 +193,12 @@ and the commands the MiBoxer app writes to its Android log:
 | --- | --- | --- |
 | Command (app / adapter → gateway) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` command: `01` hue 0–255 (value in bytes 5–8, switches to colour mode), `02` brightness 1–100 %, `03` colour temperature 0–38 (2700 K + 100 K per step), `04` saturation 0–100 %, `05` scene 1–9, `06` key (`01` on, `02` off, `03` S-, `04` S+, `06` white mode); `zz` zone: `00` all, `01`–`08` |
 | Status query | `43 00 00 80 00 00 00 00 00 80 80 C3` | the gateway answers with a `44` status frame |
-| Status (gateway → app) | `42`/`44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` change report (about 2.5 s after the last change), `44` answer to the query; `mm` mode: `00` off, `01` colour, `02` white, `03`–`0B` scene 1–9; `hh` hue, `tt` colour temperature step, `bb` brightness, `ss` saturation (0 in white mode). The zone is not part of the status |
+| Status (gateway → app) | `42`/`44` `00 00 00 mm hh tt bb ss 0B dd xx` | `42` change report (about 2.5 s after the last change), `44` answer to the query; `mm` mode: `00` off, `01` colour, `02` white, `03`–`0B` scene 1–9; `hh` hue, `tt` colour temperature step, `bb` brightness, `ss` saturation (0 in white mode), `dd` low byte of the DMX start address. The zone is not part of the status |
+| DMX start address | `49 00 00 0B 02 aa aa 00 00 zz 80 ss` | `aa aa` address 1–512 (high byte, low byte), `zz` zone; answer `49 00 00 0B 02 01 tt bb ss aa aa xx` |
 
-The standard datapoints 20–23 are derived by the gateway from these commands; the adapter only uses datapoint 20
+The key `06 05` switches the lights off as well (a second time it keeps them off, it is no toggle); what it does
+differently from `06 02` is still unknown, the adapter does not use it. The standard datapoints 20–23 are derived by the
+gateway from these commands; the adapter only uses datapoint 20
 (on/off, reported earlier than the status) and follows the datapoint 101 status for everything else. Writing the Tuya
 colour datapoint 24 does not change the colour of the lamps — the MiBoxer app does not use it either.
 
@@ -164,7 +211,7 @@ Raw access for your own experiments: `dp101.hex` accepts 11 bytes (the checksum 
 - The speed of a scene (S+ / S-) is not reported by the gateway.
 - Whether a lamp actually received a command via LoRa cannot be seen: the status comes from the gateway.
 - The gateway still reports its status to the Tuya cloud. Blocking its internet access completely may make it
-  unreliable.
+  unreliable. The timers of the MiBoxer app need the cloud, the timers of the adapter do not.
 
 ### Logging and debugging
 
@@ -173,14 +220,14 @@ The adapter logs according to a fixed concept, so a log is meaningful for troubl
 | Level | What is logged |
 | --- | --- |
 | error | Configuration errors that stop the adapter (device ID missing, local key not 16 characters) |
-| warn | Problems you have to act on — reported once and repeated only at debug level until they are resolved: gateway refuses connections, data that cannot be decoded (wrong local key), commands the gateway did not confirm, status queries that are not answered, unexpected datapoint values or status frames |
-| info | Milestones: configuration summary at start, gateway found, connected, connection lost, connection stable again, objects of the other zone variant removed |
-| debug | Every step with its inputs, decisions and durations: state change → translation into datapoint 101 frames (with the reason for extra frames such as "switch on first") → command queue → sending → confirmation by the status (or which value is still missing), every received datapoint and status and the states it updates, status queries, discovery. Commands (`#12`) and connection attempts (`Attempt #3`) are numbered, so all lines of one command can be followed |
+| warn | Problems you have to act on — reported once and repeated only at debug level until they are resolved: gateway refuses connections, data that cannot be decoded (wrong local key), commands the gateway did not confirm, status queries that are not answered, unexpected datapoint values or status frames, timers with incomplete settings or without position for sun events, timers that could not switch the lights, a DMX start address the gateway did not confirm |
+| info | Milestones: configuration summary at start, gateway found, connected, connection lost, connection stable again, objects of the other zone variant removed, number of active timers, timers paused or active again |
+| debug | Every step with its inputs, decisions and durations: state change → translation into datapoint 101 frames (with the reason for extra frames such as "switch on first") → command queue → sending → confirmation by the status (or which value is still missing), every received datapoint and status and the states it updates, status queries, discovery, every timer with its schedule, next run (sun event, offset, random shift) and execution. Commands (`#12`) and connection attempts (`Attempt #3`) are numbered, so all lines of one command can be followed |
 | silly | Additionally the protocol trace of the tuyapi library (packets, ping/pong) with the tag `[tuyapi]` |
 
 Every message starts with a component tag: `[cfg]` configuration, `[conn]` connection, `[rx]` gateway → states,
 `[cmd]` states → commands, `[queue]` command queue, `[poll]` status refresh and status query, `[disc]` discovery,
-`[dp101]` raw frames, `[unload]` shutdown, `[tuyapi]` library trace. The local key and the session keys never appear
+`[dp101]` raw frames, `[timer]` timers, `[unload]` shutdown, `[tuyapi]` library trace. The local key and the session keys never appear
 in the log — the configuration summary only shows the length of the key.
 
 To change the level: Admin → **Instances** → expert mode → log level of `miboxer-wl433.0` → `debug` (or `silly` for
@@ -222,13 +269,20 @@ Translated documentation:
 - 🇨🇳 [简体中文文档](doc/zh-cn/README.md)
 
 Credits: the checksum of datapoint 101 and the first published frames come from the tinytuya discussion
-[#623](https://github.com/jasonacox/tinytuya/discussions/623) (users *Silverstar* and *uzlonewolf*).
+[#623](https://github.com/jasonacox/tinytuya/discussions/623) (users *Silverstar* and *uzlonewolf*). Sun events are
+calculated with [suncalc](https://github.com/mourner/suncalc) by Vladimir Agafonkin (BSD-2-Clause license).
 
 ## Changelog
 <!--
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.0 (2026-09-22)
+
+- (ssbingo) Local timers in the new tab *Timers* of the instance settings (up to 50): time of day or sun event with offset and random shift, weekdays, season, zone, every light action and switching off after a duration; states `timers.active`, `timers.nextRun`, `timers.lastRun` and `timers.overview`
+- (ssbingo) DMX start address of the gateway's DMX512 input readable and writable (`settings.dmxAddress`)
+- (ssbingo) Documented: DMX command, key `06 05`, cloud timers of the MiBoxer app; manuals with a new timer chapter
 
 ### 0.1.0 (2026-09-22)
 

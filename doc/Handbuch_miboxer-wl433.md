@@ -4,7 +4,7 @@
 
 | | |
 | --- | --- |
-| Adapter-Version | 0.1.0 |
+| Adapter-Version | 0.2.0 |
 | Stand | 22.09.2026 |
 | Voraussetzung | ioBroker mit Admin ab Version 8, js-controller ab 6.0.11, Node.js ab 22 |
 | Sprache | Deutsch · [English version](Manual_miboxer-wl433.md) |
@@ -21,11 +21,12 @@
 8. [Schritt 5 – Prüfen, ob alles funktioniert](#8-schritt-5--prüfen-ob-alles-funktioniert)
 9. [Die Poolbeleuchtung bedienen](#9-die-poolbeleuchtung-bedienen)
 10. [Zonen](#10-zonen)
-11. [Beispiele für Automatisierungen](#11-beispiele-für-automatisierungen)
-12. [Fehlersuche](#12-fehlersuche)
-13. [Für Neugierige: So funktioniert es im Detail](#13-für-neugierige-so-funktioniert-es-im-detail)
-14. [Begriffe](#14-begriffe)
-15. [Rechtliches und Kontakt](#15-rechtliches-und-kontakt)
+11. [Zeitschaltungen (Timer)](#11-zeitschaltungen-timer)
+12. [Beispiele für Automatisierungen](#12-beispiele-für-automatisierungen)
+13. [Fehlersuche](#13-fehlersuche)
+14. [Für Neugierige: So funktioniert es im Detail](#14-für-neugierige-so-funktioniert-es-im-detail)
+15. [Begriffe](#15-begriffe)
+16. [Rechtliches und Kontakt](#16-rechtliches-und-kontakt)
 
 ## 1. Über dieses Handbuch
 
@@ -34,10 +35,10 @@ Dieses Handbuch führt Sie von der fertig eingerichteten MiBoxer-App bis zur Poo
 **So lesen Sie dieses Handbuch:**
 
 - Arbeiten Sie die Kapitel 3 bis 8 **der Reihe nach** ab. Danach funktioniert die Steuerung.
-- Kapitel 9 bis 11 zeigen, was Sie danach alles tun können. Kapitel 12 hilft, wenn etwas nicht klappt.
+- Kapitel 9 bis 12 zeigen, was Sie danach alles tun können. Kapitel 13 hilft, wenn etwas nicht klappt.
 - Nummerierte Listen sind Handlungsschritte: erst Schritt 1, dann Schritt 2 und so weiter.
 - Wörter in `dieser Schrift` tippen Sie genau so ab oder finden sie genau so auf dem Bildschirm.
-- Unbekannte Begriffe erklärt Kapitel 14.
+- Unbekannte Begriffe erklärt Kapitel 15.
 
 Farbige Kästen weisen auf Besonderes hin:
 
@@ -72,6 +73,7 @@ ioBroker  ──(Heimnetz / WLAN)──►  Gateway WL-433  ──(Funk 433 MHz)
 - Jede Farbe einstellen, auch blasse Pastelltöne (Farbton und Sättigung)
 - Die 9 Farbprogramme M1–M9 der App starten und schneller oder langsamer laufen lassen (S+ / S-)
 - Einzelne der 8 Zonen oder alle Zonen gleichzeitig steuern
+- Die Leuchten mit bis zu 50 Zeitschaltungen automatisch schalten – zu festen Uhrzeiten oder nach dem Sonnenstand, auch ohne Internet
 - Alles mit ioBroker-Skripten, Zeitplänen, Visualisierungen und Sprachassistenten verbinden
 
 **Das kann der Adapter nicht (weil das Gateway es nicht meldet):**
@@ -79,6 +81,7 @@ ioBroker  ──(Heimnetz / WLAN)──►  Gateway WL-433  ──(Funk 433 MHz)
 - Er kann nicht anzeigen, welche Zone gerade welche Farbe hat. Das Gateway kennt nur **einen** Zustand für alle Leuchten: die letzte Einstellung. Auch die MiBoxer-App zeigt keinen Unterschied zwischen den Zonen.
 - Er kann nicht anzeigen, wie schnell ein Farbprogramm läuft.
 - Er kann nicht sehen, ob eine Leuchte den Funkbefehl wirklich empfangen hat. Er sieht nur, was das Gateway meldet.
+- Er kann die Timer der MiBoxer-App weder anzeigen noch ändern – sie liegen in der Tuya-Cloud (Kapitel 11).
 
 ## 3. Was Sie brauchen
 
@@ -201,7 +204,7 @@ iobroker add miboxer-wl433
 Nach der Installation gibt es eine **Instanz** namens `miboxer-wl433.0` – das ist der „laufende Adapter“ für Ihr Gateway.
 
 1. Klicken Sie links auf **Instanzen**.
-2. Suchen Sie die Zeile **miboxer-wl433.0** und klicken Sie auf das **Schraubenschlüssel-Symbol**. Die Einstellungsseite öffnet sich:
+2. Suchen Sie die Zeile **miboxer-wl433.0** und klicken Sie auf das **Schraubenschlüssel-Symbol**. Die Einstellungsseite öffnet sich. Sie hat oben zwei Reiter: **Gateway** für die Verbindung (dieses Kapitel) und **Timer** für Zeitschaltungen (Kapitel 11). Sie beginnen im Reiter **Gateway**:
 
 ![Einstellungsseite der Instanz (Beispielwerte)](img/admin-config-de.png)
 
@@ -240,7 +243,7 @@ Kapitel 10 erklärt beide Varianten mit Beispielen.
 
 1. **Instanz-Status:** Klicken Sie links auf **Instanzen**. Das Symbol am Anfang der Zeile **miboxer-wl433.0** zeigt den Zustand – so wie bei allen ioBroker-Adaptern:
    - **grün:** läuft und ist mit dem Gateway verbunden – alles in Ordnung;
-   - **gelb:** läuft, ist aber (noch) nicht verbunden – kurz warten, sonst Kapitel 12;
+   - **gelb:** läuft, ist aber (noch) nicht verbunden – kurz warten, sonst Kapitel 13;
    - **rot:** gestoppt – mit dem Start-Knopf (Dreieck) starten.
 2. **Datenpunkte ansehen:** Klicken Sie links auf **Objekte** und öffnen Sie nacheinander die Ordner **miboxer-wl433 → 0 → light** (auf das Ordnersymbol klicken). Die Werte sollten zu dem passen, was die MiBoxer-App anzeigt:
 
@@ -252,7 +255,7 @@ Kapitel 10 erklärt beide Varianten mit Beispielen.
 > [!NOTE]
 > **Warum dauert das 2 bis 3 Sekunden?** Das Gateway meldet seinen neuen Zustand erst etwa 2,5 Sekunden nach der letzten Änderung. Erst dann „bestätigt“ der Adapter den Wert. Bis dahin zeigt Admin den eingegebenen Wert als noch nicht bestätigt an.
 
-Wenn etwas nicht klappt, lesen Sie in Kapitel 12 weiter.
+Wenn etwas nicht klappt, lesen Sie in Kapitel 13 weiter.
 
 ## 9. Die Poolbeleuchtung bedienen
 
@@ -264,7 +267,7 @@ Im Reiter **Objekte** ändern Sie einen Wert so:
 2. Geben Sie den neuen Wert ein oder wählen Sie ihn aus. Schalter (wie **on**) klicken Sie einfach an, Knöpfe (wie **speedUp**) ebenso.
 3. Bestätigen Sie mit Enter bzw. **Übernehmen**.
 
-In Skripten, Visualisierungen oder Sprachassistenten benutzen Sie dieselben Datenpunkte – nur eben automatisch (Kapitel 11).
+In Skripten, Visualisierungen oder Sprachassistenten benutzen Sie dieselben Datenpunkte – nur eben automatisch (Kapitel 12).
 
 ### 9.2 Was möchten Sie tun?
 
@@ -309,8 +312,21 @@ Die **Helligkeit** stellen Sie immer getrennt mit `light.brightness` ein. Ein du
 - **Einschalten bei Bedarf:** Stellen Sie Helligkeit, Farbe, Weißton oder ein Programm ein, während das Licht aus ist, schaltet der Adapter es zuerst ein – genau wie die App.
 - **Moduswechsel:** Eine Farbtemperatur schaltet automatisch auf weißes Licht, eine Farbe auf Farblicht.
 - **Schieberegler:** Ändern Sie einen Wert sehr schnell hintereinander (etwa mit einem Schieberegler), sendet der Adapter nur den letzten Wert.
-- **Bestätigung:** Jeder Befehl gilt erst als ausgeführt, wenn das Gateway den neuen Zustand meldet (nach etwa 2,5 Sekunden). Bleibt die Meldung aus, fragt der Adapter nach und schreibt eine Warnung ins Protokoll (Kapitel 12).
+- **Bestätigung:** Jeder Befehl gilt erst als ausgeführt, wenn das Gateway den neuen Zustand meldet (nach etwa 2,5 Sekunden). Bleibt die Meldung aus, fragt der Adapter nach und schreibt eine Warnung ins Protokoll (Kapitel 13).
 - **Abgleich mit der App:** Was Sie in der MiBoxer-App ändern, erscheint auch in ioBroker. Zusätzlich fragt der Adapter den Zustand regelmäßig ab (Einstellung *Intervall für die Statusabfrage*).
+
+### 9.5 DMX-Startadresse
+
+Das WL-433 hat einen Eingang für **DMX512** – den Standard, mit dem Lichtpulte Bühnen- und Effektlicht steuern. Ab seiner **Startadresse** wertet das Gateway fünf DMX-Kanäle aus: Rot, Grün, Blau, Kaltweiß und Warmweiß. Das brauchen Sie nur, wenn Sie ein DMX-Lichtpult anschließen. Die MiBoxer-App stellt die Adresse im Punkt **DMX einstellen** ein (1 bis 512). Der Adapter zeigt sie im Datenpunkt `settings.dmxAddress` und kann sie auch ändern:
+
+1. Öffnen Sie im Reiter **Objekte** den Ordner **miboxer-wl433 → 0 → settings**.
+2. Klicken Sie auf den Wert von **dmxAddress**, tragen Sie eine Zahl von `1` bis `512` ein und drücken Sie Enter.
+3. Das Gateway bestätigt die neue Adresse innerhalb weniger Sekunden. Bleibt die Bestätigung aus, steht eine Warnung im Protokoll (Kapitel 13).
+
+Die Adresse gilt – wie in der App – für die gerade gewählte Zone: bei der Variante *Zonenwahl* für die Zone aus `light.zone`, bei *Ein Kanal je Zone* für alle Zonen.
+
+> [!NOTE]
+> Ändern Sie die Adresse nur, wenn Sie ein DMX-Lichtpult verwenden – sie muss zur Einstellung des Lichtpults passen. Ob je Zone ein eigener Kanalblock gilt, beschreibt der Hersteller nicht. Das Gateway meldet in seinem Zustand nur die letzten zwei Stellen der Adresse (das untere Byte). Eine Adresse über 255 zeigt der Adapter deshalb nach einem Neustart zunächst falsch an – richtig wieder, sobald die Adresse in der App oder im Adapter geändert wurde.
 
 ## 10. Zonen
 
@@ -348,9 +364,228 @@ Hier gibt es zusätzlich den Ordner `zones` mit je einem Unterordner `zone1` bis
 > [!NOTE]
 > Ein Zonenkanal zeigt die **zuletzt an diese Zone gesendeten und vom Gateway bestätigten** Werte. Felder bleiben leer, bis Sie etwas an die Zone geschickt haben. Im Bild wurden an Zone 2 nur „Ein“ und „Helligkeit 40 %“ gesendet. Ein Befehl über `light.*` (alle Zonen) trägt seinen Wert in allen acht Zonenkanälen ein.
 
-## 11. Beispiele für Automatisierungen
+## 11. Zeitschaltungen (Timer)
 
-### 11.1 Mit Skripten (JavaScript-Adapter)
+Der Adapter kann die Poolbeleuchtung selbstständig schalten – zu festen Uhrzeiten oder passend zum Sonnenstand. Bis zu **50 Timer** richten Sie in den Einstellungen der Instanz ein, ganz ohne Programmieren. Die Timer laufen in ioBroker bei Ihnen zu Hause und funktionieren auch, wenn das Internet ausfällt.
+
+### 11.1 Timer des Adapters oder Timer der App?
+
+Auch die MiBoxer-App hat Timer. Beide Arten arbeiten unabhängig voneinander:
+
+| | Timer des Adapters | Timer der MiBoxer-App |
+| --- | --- | --- |
+| Wo sie gespeichert sind und laufen | in ioBroker, bei Ihnen zu Hause | in der Tuya-Cloud im Internet |
+| Ohne Internet | funktionieren | funktionieren nicht |
+| Auslöser | feste Uhrzeit oder Sonnenereignis (z. B. Sonnenuntergang), jeweils mit Verschiebung in Minuten | feste Uhrzeit |
+| Zufällige Abweichung (Anwesenheitssimulation) | ja | nein |
+| Tage | Wochentage und Saison (z. B. nur 1. Mai bis 30. September) | Wochentage |
+| Zonen | alle Zonen oder eine bestimmte Zone | alle Zonen |
+| Aktionen | Einschalten, Ausschalten, Weißlicht, Farbe, Farbprogramm, Helligkeit und nach einer Dauer wieder ausschalten | Einschalten oder Ausschalten |
+
+Die Angaben zu den App-Timern stammen aus einem Test mit der App am 22.09.2026.
+
+> [!NOTE]
+> Der Adapter kann die Timer der App weder anzeigen noch ändern. Schaltet ein App-Timer die Leuchten, sieht der Adapter das Ergebnis aber sofort und aktualisiert `light.*`. Sie können beide Arten gleichzeitig verwenden – achten Sie nur darauf, dass sie sich nicht widersprechen (zum Beispiel App-Timer „20:00 Uhr ein“ und Adapter-Timer „19:55 Uhr aus“).
+
+### 11.2 Vorbereitung: Standort für Sonnenereignisse
+
+Dieser Schritt ist nur nötig, wenn ein Timer einem Sonnenereignis folgen soll (Sonnenaufgang, Sonnenuntergang, Dämmerung …). Der Adapter berechnet diese Zeiten aus dem Standort Ihrer ioBroker-Installation. Meist ist er schon eingetragen. So prüfen Sie es:
+
+1. Klicken Sie in ioBroker Admin links unten auf **System**. Das Fenster **Basiseinstellungen** öffnet sich.
+2. Im Reiter **System** stehen rechts unter der Karte **Breitengrad** und **Längengrad** (rot markiert). Passen die Zahlen ungefähr zu Ihrem Wohnort, ist alles in Ordnung.
+3. Sonst tragen Sie die Werte ein. Sie finden sie zum Beispiel, indem Sie Ihren Ort in einem Kartendienst suchen. Beispiel Berlin: Breitengrad `52.52`, Längengrad `13.40`. Verwenden Sie einen **Punkt** als Dezimaltrennzeichen.
+4. Klicken Sie auf **Speichern und schließen**.
+5. Starten Sie die Instanz **miboxer-wl433.0** neu (links **Instanzen**, in der Zeile auf das Symbol mit dem kreisförmigen Pfeil klicken). Erst dann übernimmt der Adapter den neuen Standort.
+
+![Standort in den Basiseinstellungen (Karte: © OpenStreetMap-Mitwirkende)](img/admin-system-position-de.png)
+
+> [!NOTE]
+> Fehlt der Standort, ignoriert der Adapter Timer mit Sonnenereignis und schreibt eine Warnung ins Protokoll. Timer mit fester Uhrzeit brauchen keinen Standort.
+
+### 11.3 Einen Timer anlegen – Schritt für Schritt
+
+1. Klicken Sie links auf **Instanzen** und in der Zeile **miboxer-wl433.0** auf das **Schraubenschlüssel-Symbol** (wie in Kapitel 7).
+2. Klicken Sie oben auf den Reiter **Timer**.
+3. Klicken Sie auf das **+** (Plus, rot markiert). Ein neuer Eintrag erscheint und ist gleich aufgeklappt. Er ist so vorbelegt, dass er täglich um 20:00 Uhr alle Zonen einschaltet:
+
+![Neuer Timer mit seinen Startwerten](img/admin-timers-new-de.png)
+
+4. Tragen Sie bei **Name** eine kurze Bezeichnung ein, zum Beispiel `Pool abends`. Der Name erscheint in der Kopfzeile des Eintrags und im Protokoll.
+5. Wählen Sie den **Auslöser**: *Uhrzeit* oder ein Sonnenereignis (Tabelle in 11.4). Bei *Uhrzeit* klicken Sie auf das Uhr-Symbol im Feld **Uhrzeit** und wählen die Zeit aus.
+6. Wählen Sie die **Wochentage**: Klicken Sie auf das Feld, es öffnet sich eine Liste. Ein Klick auf einen Tag wählt ihn an oder ab. Ein Klick neben die Liste schließt sie wieder.
+7. Legen Sie **Zone** und **Aktion** fest. Je nach Aktion erscheinen weitere Felder: **Farbtemperatur** bei *Weißlicht*, **Farbe** bei *Farbe*, **Szene** bei *Szene*.
+8. Klicken Sie unten auf **Speichern und schließen**. Die Instanz startet neu und plant den Timer ein.
+9. **Kontrolle:** Im Reiter **Objekte** zeigt der Datenpunkt `miboxer-wl433.0.timers.nextRun`, wann der nächste Timer schaltet (11.7).
+
+> [!TIP]
+> Legen Sie ähnliche Timer mit dem Kopieren-Symbol an (11.6) – dann müssen Sie nur noch die Unterschiede ändern.
+
+### 11.4 Die Felder im Einzelnen
+
+| Feld | Bedeutung | Beispiel |
+| --- | --- | --- |
+| **Aktiv** | Haken entfernen schaltet den Timer ab, ohne ihn zu löschen | Haken gesetzt |
+| **Name** | Frei wählbare Bezeichnung | `Pool abends` |
+| **Auslöser** | *Uhrzeit* oder ein Sonnenereignis (Tabelle unten) | *Sonnenuntergang* |
+| **Uhrzeit** | Nur beim Auslöser *Uhrzeit*: wann der Timer schaltet | `21:30` |
+| **Verschiebung** | So viele Minuten früher (negative Zahl) oder später (positive Zahl) als der Auslöser, von −720 bis 720 | `-15` = 15 Minuten vor Sonnenuntergang |
+| **Zufällige Abweichung** | Der Timer schaltet jedes Mal zufällig bis zu so viele Minuten früher oder später (0 bis 120). So sieht es aus, als wäre jemand zu Hause | `10` = zwischen 10 Minuten früher und 10 Minuten später |
+| **Wochentage** | An welchen Tagen der Timer schaltet | Montag bis Freitag |
+| **Saison von / Saison bis** | Nur in diesem Zeitraum des Jahres, im Format `TT.MM.`. Eine Saison über den Jahreswechsel ist möglich (`01.11.` bis `28.02.`). Beide Felder leer = ganzjährig | `01.05.` bis `30.09.` |
+| **Zone** | *Alle Zonen* oder eine Zone von 1 bis 8 | *Alle Zonen* |
+| **Aktion** | Was passiert (Tabelle unten) | *Weißlicht* |
+| **Farbtemperatur** | Nur bei *Weißlicht*: 2700 K (warm) bis 6500 K (kalt) | `3000` |
+| **Farbe** | Nur bei *Farbe*: Farbe aus der Farbauswahl | Blau |
+| **Szene** | Nur bei *Szene*: Farbprogramm M1 bis M9 | M3 |
+| **Helligkeit** | 1 bis 100 %. Leer lassen = die Helligkeit bleibt, wie sie ist. Nicht bei *Ausschalten* | `60` |
+| **Ausschalten nach** | Nach so vielen Minuten schaltet der Timer die Leuchten seiner Zone wieder aus (0 = nicht ausschalten, höchstens 1440 = 24 Stunden). Nicht bei *Ausschalten* | `120` |
+
+**Die Sonnenereignisse:**
+
+| Auslöser | Wann |
+| --- | --- |
+| *Morgendämmerung* | Es wird hell: Beginn der bürgerlichen Morgendämmerung (Sonne 6° unter dem Horizont) |
+| *Sonnenaufgang* | Die Sonne erscheint am Horizont |
+| *Goldene Stunde (abends)* | Beginn der „goldenen Stunde“, etwa eine Stunde vor Sonnenuntergang (Sonne 6° über dem Horizont) |
+| *Sonnenuntergang* | Die Sonne verschwindet hinter dem Horizont |
+| *Abenddämmerung* | Es ist fast dunkel: Ende der bürgerlichen Abenddämmerung (Sonne 6° unter dem Horizont) |
+| *Nacht* | Es ist völlig dunkel: Beginn der astronomischen Nacht (Sonne 18° unter dem Horizont) |
+
+Beispiel Berlin am 21. Juni: Morgendämmerung 03:52, Sonnenaufgang 04:43, goldene Stunde 20:37, Sonnenuntergang 21:33, Abenddämmerung 22:23 Uhr. Am 21. Dezember: Sonnenaufgang 08:14, Sonnenuntergang 15:53 Uhr.
+
+> [!IMPORTANT]
+> In Deutschland wird es von etwa Mitte Mai bis Ende Juli nie ganz dunkel – die *Nacht* findet dann nicht statt, und ein Timer mit diesem Auslöser schaltet an diesen Tagen nicht. Nehmen Sie für den Sommer besser *Abenddämmerung* mit einer Verschiebung.
+
+**Die Aktionen:**
+
+| Aktion | Was passiert |
+| --- | --- |
+| *Einschalten* | Schaltet die Leuchten mit den zuletzt eingestellten Werten ein |
+| *Ausschalten* | Schaltet die Leuchten aus |
+| *Weißlicht* | Weißes Licht mit der gewählten Farbtemperatur |
+| *Farbe* | Die gewählte Farbe |
+| *Szene* | Startet das gewählte Farbprogramm M1 bis M9 |
+| *Nur Helligkeit* | Ändert nur die Helligkeit – dafür muss im Feld **Helligkeit** ein Wert stehen |
+
+Sind die Leuchten aus, schalten *Weißlicht*, *Farbe*, *Szene* und *Nur Helligkeit* sie zuerst ein – genau wie die App.
+
+### 11.5 Beispiele
+
+**Beispiel 1 – im Sommer jeden Abend warmweißes Licht**
+
+| Feld | Wert |
+| --- | --- |
+| Name | `Pool abends` |
+| Auslöser | *Sonnenuntergang*, Verschiebung `-15` |
+| Wochentage | alle |
+| Saison | `01.05.` bis `30.09.` |
+| Zone | *Alle Zonen* |
+| Aktion | *Weißlicht*, Farbtemperatur `3000`, Helligkeit `60` |
+
+Ergebnis: Von Mai bis September schaltet der Adapter jeden Abend 15 Minuten vor Sonnenuntergang warmweißes Licht mit 60 % Helligkeit ein.
+
+![Beispiel „Pool abends“](img/admin-timers-de.png)
+
+**Beispiel 2 – Farbprogramm am Wochenende für zwei Stunden**
+
+| Feld | Wert |
+| --- | --- |
+| Name | `Party Freitag` |
+| Auslöser | *Uhrzeit* `21:30` |
+| Wochentage | Freitag, Samstag |
+| Zone | *Zone 2* |
+| Aktion | *Szene* M3, Ausschalten nach `120` |
+
+Ergebnis: Freitags und samstags um 21:30 Uhr startet in Zone 2 das Farbprogramm M3. Um 23:30 Uhr schaltet der Adapter Zone 2 wieder aus.
+
+![Beispiel „Party Freitag“](img/admin-timers-scene-de.png)
+
+**Beispiel 3 – nachts ausschalten wie von Hand**
+
+| Feld | Wert |
+| --- | --- |
+| Name | `Nachts aus` |
+| Auslöser | *Uhrzeit* `23:30`, zufällige Abweichung `10` |
+| Wochentage | alle |
+| Zone | *Alle Zonen* |
+| Aktion | *Ausschalten* |
+
+Ergebnis: Jede Nacht gehen alle Leuchten zwischen 23:20 und 23:40 Uhr aus – jeden Tag zu einer etwas anderen Zeit.
+
+> [!TIP]
+> Beispiel 3 ist auch eine gute Absicherung: Das automatische „Ausschalten nach“ aus Beispiel 2 geht verloren, wenn die Instanz in der Zwischenzeit neu startet (11.8). Ein eigener Timer zum Ausschalten schaltet trotzdem.
+
+### 11.6 Timer ändern, kopieren, verschieben und löschen
+
+- **Ändern:** Klicken Sie auf die Kopfzeile eines Eintrags (den Namen), um ihn auf- oder zuzuklappen, und ändern Sie die Felder.
+- In der grauen Leiste unten in jedem aufgeklappten Eintrag finden Sie diese Symbole:
+
+| Symbol | Wirkung |
+| --- | --- |
+| Pfeil nach oben / nach unten | Eintrag in der Liste nach oben oder unten verschieben. Die Reihenfolge bestimmt nur die Nummer des Timers im Protokoll |
+| Papierkorb | Eintrag löschen |
+| Zwei Blätter | Eintrag kopieren – praktisch für ähnliche Timer |
+
+- **Nach jeder Änderung** klicken Sie auf **Speichern und schließen**. Erst dann gelten die Änderungen. Mit **Schließen** ohne Speichern verwerfen Sie sie.
+- Die Einstellungsseite lässt höchstens **50 Timer** zu.
+- Über der Liste gibt es Symbole, um alle Timer in eine Datei zu sichern (**Konfigurationsabschnitt exportieren**) und sie aus einer Datei zu laden (**… importieren und ersetzen** bzw. **… importieren und hinzufügen**). So können Sie Ihre Timer sichern oder in eine andere Instanz übertragen. **(ungeprüft)**
+
+### 11.7 Timer im Blick behalten und pausieren
+
+Im Reiter **Objekte** finden Sie unter **miboxer-wl433 → 0 → timers** diese Datenpunkte:
+
+![Datenpunkte unter settings und timers (hier noch ohne eingerichtete Timer)](img/admin-objects-timers-de.png)
+
+| Datenpunkt | Bedeutung |
+| --- | --- |
+| `timers.active` | Schalter für **alle** Timer: `false` pausiert sie (zum Beispiel im Urlaub oder im Winter), `true` lässt sie wieder laufen. Während der Pause fallende Termine werden übersprungen, nicht nachgeholt |
+| `timers.nextRun` | Der nächste Lauf mit Name, zum Beispiel `Tue 2026-09-22 19:05:00 · Pool abends`. Während der Pause steht davor `paused` |
+| `timers.lastRun` | Der letzte Lauf mit Name und Aktion |
+| `timers.overview` | Liste aller Timer mit Zeitplan, Aktion, nächstem Lauf und – falls ein Timer ignoriert wird – dem Grund (`error`) |
+
+Die Texte dieser Datenpunkte sind englisch: `Mon` bis `Sun` sind die Wochentage Montag bis Sonntag, `daily` bedeutet täglich.
+
+> [!TIP]
+> `timers.active` lässt sich auch aus Skripten, Visualisierungen oder Sprachassistenten schalten – Beispiel in Kapitel 12.1.
+
+### 11.8 Gut zu wissen
+
+- **Uhrzeit:** Es gilt die Uhrzeit des ioBroker-Rechners. Sommer- und Winterzeit werden berücksichtigt.
+- **Gateway nicht verbunden:** Ist das Gateway zum Zeitpunkt eines Timers nicht erreichbar, entfällt dieser Lauf. Der Adapter schreibt eine Warnung ins Protokoll und holt den Lauf nicht nach.
+- **Neustart:** Nach jedem Speichern der Einstellungen startet die Instanz neu und plant alle Timer neu. Ein laufendes „Ausschalten nach“ geht dabei verloren.
+- **Wochentage und Verschiebung:** Wochentage und Saison beziehen sich auf den Tag des Auslösers. Ein Timer „Uhrzeit 00:30, Verschiebung −60, nur Samstag“ schaltet deshalb am Freitag um 23:30 Uhr.
+- **Zonen:** Bei der Variante *Zonenwahl* senden Timer an ihre eigene Zone, ohne `light.zone` zu verändern. Bei *Ein Kanal je Zone* aktualisieren sie den Kanal ihrer Zone (`zones.zone1` bis `zones.zone8`).
+- **Bestätigung:** Jeder Timer-Befehl wird wie jeder andere Befehl vom Gateway bestätigt (Kapitel 9.4).
+
+### 11.9 Wenn ein Timer nicht schaltet
+
+Gehen Sie diese Punkte der Reihe nach durch:
+
+1. Ist beim Timer der Haken **Aktiv** gesetzt, und haben Sie **Speichern und schließen** geklickt?
+2. Steht `timers.active` auf `true`?
+3. Steht der Timer in `timers.overview` mit einem `error`? Dann nennt der Eintrag den Grund (englisch):
+
+| Grund | Bedeutung | Abhilfe |
+| --- | --- | --- |
+| `no valid time set` | Keine Uhrzeit eingetragen | Uhrzeit wählen |
+| `no weekday selected` | Kein Wochentag gewählt | Mindestens einen Tag wählen |
+| `season needs "from" and "to" as DD.MM.` | Nur eines der Saisonfelder ausgefüllt oder falsches Format | Beide Felder im Format `TT.MM.` ausfüllen oder beide leeren |
+| `action white needs a colour temperature` | *Weißlicht* ohne Farbtemperatur | Farbtemperatur eintragen |
+| `action colour needs a colour like #0000ff` | *Farbe* ohne gültige Farbe | Farbe wählen |
+| `action scene needs a scene 1 to 9` | *Szene* ohne Szene | Szene wählen |
+| `action brightness needs a brightness` | *Nur Helligkeit* ohne Helligkeit | Helligkeit eintragen |
+| `uses the sun event "…", but no position is set …` | Für das Sonnenereignis fehlt der Standort | Standort eintragen (11.2) |
+
+4. Hat der Timer überhaupt einen nächsten Lauf? Steht bei ihm `nextRun` auf `null`, passen Wochentage, Saison und Auslöser nie zusammen (zum Beispiel *Nacht* nur im Juni).
+5. War das Gateway zum geplanten Zeitpunkt verbunden? Im Protokoll steht dann `[timer] … could not switch the lights …`.
+6. Stellen Sie die Protokollstufe auf `debug` (Kapitel 13.1). Der Adapter schreibt dann mit der Kennung `[timer]` für jeden Timer, wann er das nächste Mal läuft und warum.
+
+## 12. Beispiele für Automatisierungen
+
+> [!TIP]
+> Für Zeitschaltungen brauchen Sie kein Skript: Die Timer aus Kapitel 11 erledigen das einfacher. Skripte lohnen sich, wenn die Beleuchtung auf andere Dinge reagieren soll – zum Beispiel auf einen Bewegungsmelder oder die Poolabdeckung.
+
+### 12.1 Mit Skripten (JavaScript-Adapter)
 
 Installieren Sie dazu den Adapter **JavaScript/Blockly** (Reiter **Adapter**, Suche `javascript`). Legen Sie unter **Skripte** ein neues JavaScript an und fügen Sie ein:
 
@@ -382,7 +617,15 @@ await setStateAsync("miboxer-wl433.0.light.zone", 0);
 await setStateAsync("miboxer-wl433.0.zones.zone2.scene", 3);
 ```
 
-### 11.2 Mit Blockly (ohne Programmieren)
+**Alle Timer pausieren, solange die Poolabdeckung geschlossen ist** (den Datenpunkt der Abdeckung passen Sie an Ihre Installation an):
+
+```javascript
+on({ id: "0_userdata.0.poolAbdeckungGeschlossen", change: "ne" }, obj => {
+    setState("miboxer-wl433.0.timers.active", !obj.state.val);
+});
+```
+
+### 12.2 Mit Blockly (ohne Programmieren)
 
 Blockly ist im Adapter **JavaScript/Blockly** enthalten. Sie setzen dabei Bausteine zusammen: **(ungeprüft)**
 
@@ -391,26 +634,26 @@ Blockly ist im Adapter **JavaScript/Blockly** enthalten. Sie setzen dabei Bauste
 3. Aus der Gruppe **System** den Baustein **steuere** hineinziehen, die Objekt-ID `miboxer-wl433.0.light.color` auswählen und als Wert `#0000ff` eintragen.
 4. Speichern und das Skript starten.
 
-### 11.3 Visualisierung und Sprachassistenten
+### 12.3 Visualisierung und Sprachassistenten
 
 Die Datenpunkte haben die in ioBroker üblichen „Rollen“ (zum Beispiel *Schalter Licht*, *Dimmer*, *Farbe RGB*, *Farbtemperatur*). Visualisierungen und Adapter für Sprachassistenten können die Poolbeleuchtung deshalb meist automatisch als Lampe erkennen. **(ungeprüft)**
 
-## 12. Fehlersuche
+## 13. Fehlersuche
 
-### 12.1 Ausführliches Protokoll einschalten
+### 13.1 Ausführliches Protokoll einschalten
 
 Für die Fehlersuche schreibt der Adapter auf Wunsch jeden Schritt ins Protokoll:
 
 1. Öffnen Sie die Einstellungen der Instanz (Kapitel 7, Schraubenschlüssel).
 2. Oben neben dem Namen steht die **Protokollstufe** (zum Beispiel `info`). Klicken Sie auf den **Stift** daneben und wählen Sie `debug`.
-3. Den Stift finden Sie auch im Bild in Kapitel 7 oben rechts neben *v0.1.0*.
+3. Den Stift finden Sie auch im Bild in Kapitel 7 oben rechts neben *v0.2.0*.
 
 Das Protokoll sehen Sie links unter **Protokolle**. Tippen Sie oben in das Filterfeld `miboxer`, um nur die Meldungen dieses Adapters zu sehen. Jede Meldung beginnt mit einer Kennung in eckigen Klammern, zum Beispiel `[conn]` für die Verbindung oder `[cmd]` für Befehle.
 
 > [!TIP]
 > Stellen Sie die Stufe nach der Fehlersuche wieder auf `info`. Die Stufe `debug` erzeugt sehr viele Zeilen.
 
-### 12.2 Meldungen und was Sie tun können
+### 13.2 Meldungen und was Sie tun können
 
 | Meldung im Protokoll (Anfang) | Bedeutung | Was Sie tun können |
 | --- | --- | --- |
@@ -419,15 +662,21 @@ Das Protokoll sehen Sie links unter **Protokolle**. Tippen Sie oben in das Filte
 | `[conn] Cannot keep a connection to the WL-433 gateway …` | Das Gateway lässt den Adapter nicht zu | IP-Adresse, Local Key und Protokollversion prüfen; MiBoxer-App auf allen Handys schließen; andere Tuya-Integrationen (ioBroker.tuya, Home Assistant) für dieses Gateway abschalten |
 | `[rx] Gateway sent data that could not be decoded …` | Der Local Key ist falsch oder veraltet (Gateway neu gekoppelt) | Kapitel 5 wiederholen und den neuen Local Key eintragen |
 | `[disc] Gateway … did not announce itself in the local network …` | Die automatische Suche hat das Gateway nicht gefunden | IP-Adresse aus dem Router ablesen und eintragen; Gateway und ioBroker müssen im selben Netz sein |
-| `[cmd] #12 light.brightness: the gateway did not confirm …` | Das Gateway hat nach einem Befehl keinen passenden Zustand gemeldet | Ist das Gateway eingeschaltet und im WLAN? In der App prüfen, ob es erreichbar ist. Tritt es öfter auf: Problem melden (12.4) |
-| `[poll] … Status query not answered …` | Das Gateway antwortet nicht auf die Zustandsabfrage | Prüfen, ob es wirklich ein WL-433 ist; Problem melden (12.4) |
+| `[cmd] #12 light.brightness: the gateway did not confirm …` | Das Gateway hat nach einem Befehl keinen passenden Zustand gemeldet | Ist das Gateway eingeschaltet und im WLAN? In der App prüfen, ob es erreichbar ist. Tritt es öfter auf: Problem melden (13.4) |
+| `[poll] … Status query not answered …` | Das Gateway antwortet nicht auf die Zustandsabfrage | Prüfen, ob es wirklich ein WL-433 ist; Problem melden (13.4) |
 | `[cmd] … not executed: a colour like "#ff8800" is expected` | Der eingegebene Wert hat das falsche Format | Farbe im Format `#RRGGBB` eingeben |
 | `[cmd] … not executed: gateway is not connected` | Der Befehl kam, während keine Verbindung bestand | Warten, bis `info.connection` wieder `true` ist, und den Befehl wiederholen |
-| `[dp101] Status frame … has an unknown mode …` | Das Gateway meldet einen unbekannten Zustand | Problem melden (12.4) |
+| `[dp101] Status frame … has an unknown mode …` | Das Gateway meldet einen unbekannten Zustand | Problem melden (13.4) |
 | `[cfg] light.mode is created again without the mode "music" …` | Einmalige Umstellung beim Update von Version 0.0.1 | Nichts – eigene Einstellungen dieses Datenpunkts (z. B. Verlauf) ggf. neu setzen |
 | `[cfg] Zone mode "…": removed …` | Nach einer Änderung der Zonensteuerung wurden die Datenpunkte der anderen Variante gelöscht | Nichts – ggf. Skripte anpassen |
+| `[timer] Timer 3 "…" is ignored: …` | Der Timer ist unvollständig eingerichtet; hinter dem Doppelpunkt steht der Grund | Timer im Reiter **Timer** korrigieren (11.9) |
+| `[timer] Timer … uses the sun event "…", but no position is set …` | Für Sonnenereignisse fehlt der Standort | Standort eintragen und Instanz neu starten (11.2) |
+| `[timer] Timer … has no run within the next year …` | Wochentage, Saison und Auslöser passen nie zusammen | Wochentage, Saison und Auslöser prüfen (11.9) |
+| `[timer] #… Timer … could not switch the lights: gateway is not connected` | Zum Zeitpunkt des Timers war das Gateway nicht verbunden; dieser Lauf entfällt | Verbindung prüfen (Kapitel 8) |
+| `[timer] … timers configured, only the first 50 are used …` | Es sind mehr als 50 Timer gespeichert (zum Beispiel durch einen Import) | Überzählige Timer löschen |
+| `[cmd] #… settings.dmxAddress: the gateway did not confirm the DMX start address …` | Das Gateway hat die neue DMX-Startadresse nicht bestätigt | Verbindung prüfen und den Wert erneut schreiben (9.5) |
 
-### 12.3 Häufige Fragen
+### 13.3 Häufige Fragen
 
 **Alle Zonen zeigen dieselbe Farbe, obwohl die Leuchten verschieden leuchten.**
 Das ist richtig so: Das Gateway meldet nur einen Zustand für alle Leuchten (Kapitel 10).
@@ -447,27 +696,39 @@ Das Gateway meldet sie nicht. `speedUp` und `speedDown` wirken trotzdem.
 **Der Adapter meldet Erfolg, aber eine Leuchte reagiert nicht.**
 Der Adapter sieht nur das Gateway, nicht die Leuchten. Prüfen Sie, ob die Leuchte mit einer Zone verknüpft ist und ob sie in der App reagiert. Leuchten im Wasser haben eine kürzere Funkreichweite.
 
-### 12.4 Ein Problem melden
+**Ich habe in der MiBoxer-App Timer angelegt. Warum sieht der Adapter sie nicht?**
+Die Timer der App liegen in der Tuya-Cloud, nicht im Gateway. Der Adapter kann sie nicht lesen, sieht aber, wenn sie schalten (Kapitel 11.1).
+
+**Ein Timer hat nicht geschaltet.**
+Gehen Sie die Liste in Kapitel 11.9 durch.
+
+**Mein Timer schaltet jeden Tag zu einer anderen Uhrzeit.**
+Das ist richtig, wenn er einem Sonnenereignis folgt – das verschiebt sich im Lauf des Jahres – oder wenn eine zufällige Abweichung eingestellt ist.
+
+**Wie pausiere ich alle Timer, zum Beispiel im Urlaub?**
+Setzen Sie `timers.active` auf `false`. Mit `true` laufen sie wieder (Kapitel 11.7).
+
+### 13.4 Ein Problem melden
 
 Öffnen Sie ein „Issue“ auf GitHub: <https://github.com/ssbingo/ioBroker.miboxer-wl433/issues>. Hilfreich sind:
 
-1. die Adapter-Version (steht in den Instanz-Einstellungen oben, z. B. *v0.1.0*);
-2. ein Protokoll in der Stufe **debug** – vom Start der Instanz bis zum Fehler (12.1);
+1. die Adapter-Version (steht in den Instanz-Einstellungen oben, z. B. *v0.2.0*);
+2. ein Protokoll in der Stufe **debug** – vom Start der Instanz bis zum Fehler (13.1);
 3. der Inhalt des Datenpunkts `dp101.history` (im Objekte-Reiter unter `miboxer-wl433.0.dp101` anklicken und kopieren);
 4. eine kurze Beschreibung, was Sie getan haben und was passiert ist.
 
 > [!NOTE]
 > Der Adapter schreibt den Local Key **nie** ins Protokoll – im Protokoll steht nur seine Länge. Sie können das Protokoll also bedenkenlos anhängen. Hängen Sie aber **keine** Mitschnitte der MiBoxer-App an (Kapitel 5), denn die enthalten den Schlüssel.
 
-## 13. Für Neugierige: So funktioniert es im Detail
+## 14. Für Neugierige: So funktioniert es im Detail
 
 Dieses Kapitel ist für alle, die verstehen oder nachbauen möchten, wie der Adapter mit dem Gateway spricht. Für die Bedienung brauchen Sie es nicht.
 
-### 13.1 Die Verbindung
+### 14.1 Die Verbindung
 
 Das WL-433 enthält ein WLAN-Modul der Firma Tuya. Der Adapter verbindet sich über das **Tuya-LAN-Protokoll 3.3** (TCP-Port 6668, verschlüsselt mit dem Local Key) mit dem Gateway. Die eigentlichen Licht-, Zonen- und Szenenbefehle stecken im herstellerspezifischen **Datenpunkt 101**: kurze Nachrichten („Frames“) aus 12 Bytes. Das letzte Byte ist eine Prüfsumme – die Summe der ersten 11 Bytes.
 
-### 13.2 Die Befehle
+### 14.2 Die Befehle
 
 Ein Befehl an das Gateway sieht so aus (Werte in Hexadezimalschreibweise):
 
@@ -486,12 +747,13 @@ Ein Befehl an das Gateway sieht so aus (Werte in Hexadezimalschreibweise):
 | `03` | Farbtemperatur | 0–38 (2700 K + 100 K je Stufe) |
 | `04` | Sättigung | 0–100 % |
 | `05` | Farbprogramm | 1–9 (M1–M9) |
-| `06` | Taste | `01` ein, `02` aus, `03` langsamer (S-), `04` schneller (S+), `06` weißes Licht |
+| `06` | Taste | `01` ein, `02` aus, `03` langsamer (S-), `04` schneller (S+), `06` weißes Licht. `05` schaltet ebenfalls aus (ein zweites Mal bleiben die Leuchten aus); was diese Taste anders macht als `02`, ist noch unbekannt – der Adapter verwendet sie nicht |
 
 Die Abfrage `43 00 00 80 00 00 00 00 00 80 80 C3` beantwortet das Gateway mit seinem Zustand:
 
 ```text
-42|44 00 00 00  mm  hh  tt  bb  ss  0B 01  xx
+42|44 00 00 00  mm  hh  tt  bb  ss  0B  dd  xx
+                │   │   │   │   │       └─ DMX-Startadresse (unteres Byte)
                 │   │   │   │   └─ Sättigung (im Weißmodus 0)
                 │   │   │   └─ Helligkeit
                 │   │   └─ Farbtemperatur-Stufe
@@ -501,7 +763,22 @@ Die Abfrage `43 00 00 80 00 00 00 00 00 80 80 C3` beantwortet das Gateway mit se
 
 `42` meldet eine Änderung (etwa 2,5 Sekunden nach der letzten Änderung), `44` ist die Antwort auf die Abfrage.
 
-### 13.3 Das Protokoll selbst nachvollziehen
+Die DMX-Startadresse (Kapitel 9.5) hat einen eigenen Befehl:
+
+```text
+49 00 00 0B 02  aa aa  00 00  zz  80  ss
+                │             │       └─ Prüfsumme
+                │             └─ Zone: 00 = alle, 01–08 = Zone 1–8
+                └─ DMX-Startadresse 1–512 (oberes Byte, unteres Byte)
+```
+
+Das Gateway antwortet mit `49 00 00 0B 02 01 tt bb ss aa aa xx`: `01` = übernommen, danach Farbtemperatur-Stufe, Helligkeit, Sättigung und die Adresse.
+
+### 14.3 Die Timer der MiBoxer-App
+
+Die App speichert ihre Timer über die Tuya-Cloud (Schnittstelle `tuya.m.timer.group.add`, Kategorie `mi-light-timer`). Ein Timer besteht aus einer Uhrzeit, den Wochentagen (`loops`, zum Beispiel `0111000` = Montag bis Mittwoch, beginnend mit Sonntag) und einem Befehl wie `{"dps":{"20":true}}`. Er schreibt also den Standard-Datenpunkt 20 (ein/aus), ohne Zone und ohne Datenpunkt 101. Zur geplanten Zeit schickt die Cloud den Befehl an das Gateway; der Adapter sieht dann Datenpunkt 20 und etwa 2,5 Sekunden später den neuen Status. Lokal lassen sich diese Timer nicht auslesen.
+
+### 14.4 Das Protokoll selbst nachvollziehen
 
 Das Format wurde am 22.09.2026 so entschlüsselt – Sie können es mit derselben Methode nachprüfen oder für eine neuere Gateway-Firmware erweitern:
 
@@ -514,9 +791,9 @@ Das Format wurde am 22.09.2026 so entschlüsselt – Sie können es mit derselbe
 > [!WARNING]
 > Die Datei `befehle.txt` enthält auch den Local Key. Veröffentlichen Sie sie nicht, sondern nur die herausgesuchten `ayxsendData`-Zeilen.
 
-Die vollständige Herleitung mit allen Belegen steht in der Protokollanalyse, Kapitel 3.1.8: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md).
+Die vollständige Herleitung mit allen Belegen steht in der Protokollanalyse, Kapitel 3.1.8 und 3.1.9: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md).
 
-## 14. Begriffe
+## 15. Begriffe
 
 | Begriff | Erklärung |
 | --- | --- |
@@ -534,8 +811,15 @@ Die vollständige Herleitung mit allen Belegen steht in der Protokollanalyse, Ka
 | **Protokoll / Log** | Ein Tagebuch, in das ein Programm schreibt, was es tut |
 | **adb** | Ein Werkzeug von Google, mit dem ein Computer auf ein Android-Gerät zugreifen kann |
 | **DHCP-Reservierung** | Eine Einstellung im Router, die einem Gerät immer dieselbe IP-Adresse gibt |
+| **Timer** | Eine Zeitschaltung: schaltet die Leuchten zu einer bestimmten Zeit |
+| **Sonnenereignis** | Ein Zeitpunkt, der vom Sonnenstand abhängt, zum Beispiel Sonnenuntergang. Er verschiebt sich im Lauf des Jahres |
+| **Dämmerung** | Die Zeit zwischen Tag und Nacht, in der es noch (abends) oder schon (morgens) etwas hell ist |
+| **Saison** | Ein Zeitraum im Jahr, zum Beispiel 1. Mai bis 30. September |
+| **Anwesenheitssimulation** | Licht, das jeden Tag zu leicht unterschiedlichen Zeiten schaltet, damit das Haus bewohnt wirkt |
+| **DMX** | Ein Standard zur Steuerung von Bühnen- und Effektlicht über Kabel. Jedes Gerät liest ab seiner Startadresse (1 bis 512) eine feste Zahl von Kanälen |
+| **JSON** | Ein Textformat für strukturierte Daten, zum Beispiel in `timers.overview` |
 
-## 15. Rechtliches und Kontakt
+## 16. Rechtliches und Kontakt
 
 Dies ist ein **inoffizielles Community-Projekt**. Es steht in keiner Verbindung zur Shenzhen Futlight Optoelectronics Co., Ltd. (MiBoxer / Mi-Light) oder zu Tuya. „MiBoxer“, „Mi-Light“ und „Tuya“ sind Marken ihrer jeweiligen Inhaber und werden nur zur Beschreibung der Kompatibilität verwendet. Die Nutzung erfolgt auf eigene Gefahr.
 

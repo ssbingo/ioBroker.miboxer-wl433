@@ -28,7 +28,7 @@ Las lámparas, zonas y escenas se controlan con los comandos propios de la pasar
 ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-**Manual** con cada paso explicado para principiantes (instalación, ajustes, zonas, ejemplos, solución de problemas): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
+**Manual** con cada paso explicado para principiantes (instalación, ajustes, zonas, temporizadores, ejemplos, solución de problemas): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
 
 Investigación de fondo (análisis del protocolo, fuentes, plan de pruebas, punto de datos 101 descifrado), en alemán: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guía para vincular las lámparas a la pasarela: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
 
@@ -49,6 +49,8 @@ Investigación de fondo (análisis del protocolo, fuentes, plan de pruebas, punt
 4. **Los dispositivos Tuya suelen aceptar solo una conexión local.** En una prueba, la aplicación MiBoxer y el adaptador estuvieron conectados a la vez; pero si la conexión falla una y otra vez, cierre la aplicación en los teléfonos de la misma red y no controle la pasarela al mismo tiempo con otras integraciones locales (ioBroker.tuya, Home Assistant, tinytuya).
 
 ## Configuración
+
+Los ajustes de la instancia tienen dos pestañas: **Pasarela** (conexión y control de zonas) y **Temporizadores** (ver [Temporizadores](#temporizadores)).
 
 | Ajuste | Descripción |
 | --- | --- |
@@ -71,6 +73,32 @@ La pasarela controla hasta 8 zonas (como el mando FUT086). Cada comando puede ir
 | **Un canal por zona** | `light.*` muestra el estado de la pasarela y envía a todas las zonas. Además, `zones.zone1` … `zones.zone8` controlan cada zona por separado. Un canal de zona muestra los últimos valores enviados a esa zona y confirmados por la pasarela; permanece vacío hasta que se envía algo a la zona. | Scripts y visualizaciones que se dirigen directamente a las zonas |
 
 Si se cambia el ajuste, se eliminan los estados de la otra variante.
+
+## Temporizadores
+
+La pestaña **Temporizadores** de los ajustes de la instancia contiene hasta **50 temporizadores**. Se ejecutan localmente en el adaptador, también sin Internet, y pueden hacer más que los temporizadores de la aplicación MiBoxer: eventos solares con desplazamiento, desviación aleatoria, temporada, zonas, colores, escenas y apagado tras una duración. Añada un temporizador con **+**, ábralo para modificarlo, cópielo o elimínelo con los botones de la entrada. Los cambios surten efecto al guardar los ajustes (la instancia se reinicia).
+
+| Campo | Descripción |
+| --- | --- |
+| Activo | Desactiva este temporizador sin eliminarlo |
+| Nombre | Se muestra en el registro y en `timers.overview` |
+| Disparador | *Hora del día* o un evento solar: amanecer, salida del sol, hora dorada (tarde), puesta del sol, anochecer, noche |
+| Hora del día | Solo para el disparador *Hora del día* |
+| Desplazamiento | Minutos (de −720 a 720), negativo = antes; p. ej. puesta del sol −15 |
+| Desviación aleatoria | Hasta ± minutos (0–120), se sortea de nuevo en cada ejecución; para una simulación de presencia |
+| Días de la semana | Días en los que se ejecuta el temporizador |
+| Temporada desde / hasta | `DD.MM.`, p. ej. desde `01.05.` hasta `30.09.`; también funciona una temporada que cruza el año nuevo (desde `01.11.` hasta `28.02.`); vacío = todo el año |
+| Zona | Todas las zonas o zona 1–8 |
+| Acción | Encender, apagar, luz blanca (temperatura de color 2700–6500 K), color, escena M1–M9, solo brillo |
+| Brillo | 1–100 %, vacío = sin cambios (no para *Apagar*) |
+| Apagar después de | Minutos (0–1440), 0 = no apagar (no para *Apagar*) |
+
+- Los **eventos solares** se calculan a partir de la posición indicada en los ajustes del sistema de ioBroker (latitud y longitud) con [suncalc](https://github.com/mourner/suncalc). Sin posición, estos temporizadores se ignoran con una advertencia. Los días sin el evento (regiones polares), el temporizador no se ejecuta.
+- Un temporizador envía los mismos comandos que los estados: con el control de zonas *selector de zona* a su zona (`light.zone` no se modifica), con *un canal por zona* a través de `zones.zone<n>` (todas las zonas: `light.*`). La pasarela los confirma como cualquier comando.
+- Si la pasarela no está conectada cuando vence un temporizador, esa ejecución se omite (advertencia en el registro) y no se repite más tarde.
+- Los temporizadores con ajustes incompletos se ignoran; el registro y `timers.overview` indican el motivo.
+- Las horas son horas locales del sistema ioBroker; se tiene en cuenta el horario de verano.
+- Los **temporizadores de la aplicación MiBoxer** se guardan y ejecutan en la nube de Tuya (solo encienden o apagan todas las zonas mediante el punto de datos 20 y necesitan Internet). El adaptador no puede leerlos ni modificarlos, pero ve su efecto en el estado. Ambos tipos de temporizadores pueden usarse a la vez.
 
 ## Estados
 
@@ -95,6 +123,11 @@ Si se cambia el ajuste, se eliminan los estados de la otra variante.
 | `dp101.checksumValid` | La suma de verificación de la última trama es válida |
 | `dp101.history` | Lista JSON de las últimas 50 tramas (`rx` = recibida, `tx` = enviada) con marca de tiempo; las respuestas de estado idénticas repetidas no se añaden |
 | `raw.dp<n>` | Cualquier otro punto de datos que informe la pasarela se crea automáticamente (con escritura) |
+| `settings.dmxAddress` | Dirección de inicio 1–512 de la entrada DMX512 de la pasarela: a partir de ella, la pasarela usa 5 canales: rojo, verde, azul, blanco frío, blanco cálido (menú *DMX* de la aplicación). Escribirla la envía a la zona de `light.zone` (selector de zona) o a todas las zonas; la pasarela la confirma |
+| `timers.active` | `false` pausa todos los temporizadores (p. ej. durante las vacaciones o desde un script), `true` los vuelve a activar |
+| `timers.nextRun` | Próxima ejecución de un temporizador con su nombre (`paused (…)` mientras `timers.active` sea `false`) |
+| `timers.lastRun` | Última ejecución de un temporizador con nombre y acción |
+| `timers.overview` | Lista JSON de todos los temporizadores: programación, acción, próxima ejecución, motivo si el temporizador se ignora |
 
 Los valores que necesitan un modo o las lámparas encendidas se envían como lo hace la aplicación MiBoxer: por ejemplo, una temperatura de color en modo color cambia primero al modo blanco, y un brillo con las lámparas apagadas las enciende primero. Los cambios rápidos (p. ej. de un deslizador) se agrupan y solo se envía el último valor. Los comandos solo se aceptan mientras la pasarela está conectada. Un comando se considera ejecutado cuando el siguiente estado de la pasarela muestra sus valores (unos 2,5 s después); hasta entonces el estado no está confirmado.
 
@@ -106,9 +139,10 @@ El WL-433 transporta lámparas, zonas y escenas en el punto de datos 101 especí
 | --- | --- | --- |
 | Comando (aplicación / adaptador → pasarela) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` comando: `01` tono 0–255 (valor en los bytes 5–8, cambia al modo color), `02` brillo 1–100 %, `03` temperatura de color 0–38 (2700 K + 100 K por paso), `04` saturación 0–100 %, `05` escena 1–9, `06` tecla (`01` encender, `02` apagar, `03` S-, `04` S+, `06` modo blanco); `zz` zona: `00` todas, `01`–`08` |
 | Solicitud de estado | `43 00 00 80 00 00 00 00 00 80 80 C3` | la pasarela responde con una trama de estado `44` |
-| Estado (pasarela → aplicación) | `42` / `44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` informe de cambio (unos 2,5 s después del último cambio), `44` respuesta a la solicitud; `mm` modo: `00` apagado, `01` color, `02` blanco, `03`–`0B` escena 1–9; `hh` tono, `tt` paso de temperatura de color, `bb` brillo, `ss` saturación (0 en modo blanco). La zona no forma parte del estado |
+| Estado (pasarela → aplicación) | `42` / `44` `00 00 00 mm hh tt bb ss 0B dd xx` | `42` informe de cambio (unos 2,5 s después del último cambio), `44` respuesta a la solicitud; `mm` modo: `00` apagado, `01` color, `02` blanco, `03`–`0B` escena 1–9; `hh` tono, `tt` paso de temperatura de color, `bb` brillo, `ss` saturación (0 en modo blanco), `dd` byte bajo de la dirección de inicio DMX. La zona no forma parte del estado |
+| Dirección de inicio DMX | `49 00 00 0B 02 aa aa 00 00 zz 80 ss` | `aa aa` dirección 1–512 (byte alto, byte bajo), `zz` zona; respuesta `49 00 00 0B 02 01 tt bb ss aa aa xx` |
 
-La pasarela deriva los puntos de datos estándar 20–23 de estos comandos; el adaptador solo usa el punto de datos 20 (encendido/apagado, llega antes que el estado) y para todo lo demás sigue el estado del punto de datos 101. Escribir el punto de datos de color de Tuya 24 no cambia el color de las lámparas; la aplicación MiBoxer tampoco lo usa.
+La tecla `06 05` también apaga las lámparas (pulsada una segunda vez las mantiene apagadas, no alterna); qué hace distinto de `06 02` todavía se desconoce, el adaptador no la usa. La pasarela deriva los puntos de datos estándar 20–23 de estos comandos; el adaptador solo usa el punto de datos 20 (encendido/apagado, llega antes que el estado) y para todo lo demás sigue el estado del punto de datos 101. Escribir el punto de datos de color de Tuya 24 no cambia el color de las lámparas; la aplicación MiBoxer tampoco lo usa.
 
 Acceso en bruto para sus propios experimentos: `dp101.hex` acepta 11 bytes (se añade la suma de verificación), p. ej. `43 00 00 80 00 00 00 00 00 80 80` solicita el estado.
 
@@ -117,7 +151,7 @@ Acceso en bruto para sus propios experimentos: `dp101.hex` acepta 11 bytes (se a
 - La pasarela informa un solo estado para todas las lámparas (el último ajuste) y no el estado de cada zona; ver [Zonas](#zonas).
 - La pasarela no informa la velocidad de una escena (S+ / S-).
 - No se puede ver si una lámpara ha recibido realmente un comando por radio: el estado procede de la pasarela.
-- La pasarela sigue informando su estado a la nube de Tuya. Bloquear por completo su acceso a Internet puede hacerla poco fiable.
+- La pasarela sigue informando su estado a la nube de Tuya. Bloquear por completo su acceso a Internet puede hacerla poco fiable. Los temporizadores de la aplicación MiBoxer necesitan la nube, los del adaptador no.
 
 ## Registro y solución de problemas
 
@@ -126,12 +160,12 @@ El adaptador registra según un esquema fijo, para que el registro sea útil en 
 | Nivel | Qué se registra |
 | --- | --- |
 | error | Errores de configuración que impiden funcionar al adaptador (falta el ID de dispositivo, la clave local no tiene 16 caracteres) |
-| warn | Problemas sobre los que debe actuar; se informan una vez y después solo en nivel debug hasta que se resuelven: la pasarela rechaza conexiones, datos que no se pueden descifrar (clave local incorrecta), comandos no confirmados por la pasarela, solicitudes de estado sin respuesta, valores de puntos de datos o tramas de estado inesperados |
-| info | Hitos: resumen de la configuración al inicio, pasarela encontrada, conectada, conexión perdida, conexión de nuevo estable, estados de la otra variante de zonas eliminados |
-| debug | Cada paso con sus entradas, decisiones y duraciones: cambio de estado → traducción a tramas del punto de datos 101 (con el motivo de tramas adicionales como «encender primero») → cola → envío → confirmación por el estado (o qué valor falta todavía), cada punto de datos y estado recibido y los estados actualizados, solicitudes de estado, búsqueda. Los comandos (`#12`) y los intentos de conexión (`Attempt #3`) están numerados |
+| warn | Problemas sobre los que debe actuar; se informan una vez y después solo en nivel debug hasta que se resuelven: la pasarela rechaza conexiones, datos que no se pueden descifrar (clave local incorrecta), comandos no confirmados por la pasarela, solicitudes de estado sin respuesta, valores de puntos de datos o tramas de estado inesperados, temporizadores con ajustes incompletos o sin posición para los eventos solares, temporizadores que no pudieron conmutar las lámparas, una dirección de inicio DMX no confirmada por la pasarela |
+| info | Hitos: resumen de la configuración al inicio, pasarela encontrada, conectada, conexión perdida, conexión de nuevo estable, objetos de la otra variante de zonas eliminados, número de temporizadores activos, temporizadores en pausa o de nuevo activos |
+| debug | Cada paso con sus entradas, decisiones y duraciones: cambio de estado → traducción a tramas del punto de datos 101 (con el motivo de tramas adicionales como «encender primero») → cola de comandos → envío → confirmación por el estado (o qué valor falta todavía), cada punto de datos y estado recibido y los estados que actualiza, solicitudes de estado, búsqueda, cada temporizador con su programación, su próxima ejecución (evento solar, desplazamiento, desviación aleatoria) y su ejecución. Los comandos (`#12`) y los intentos de conexión (`Attempt #3`) están numerados, de modo que se pueden seguir todas las líneas de un mismo comando |
 | silly | Además, el rastro del protocolo de la biblioteca tuyapi (paquetes, ping/pong) con la etiqueta `[tuyapi]` |
 
-Cada mensaje empieza con una etiqueta: `[cfg]` configuración, `[conn]` conexión, `[rx]` pasarela → estados, `[cmd]` estados → comandos, `[queue]` cola de comandos, `[poll]` actualización y solicitud de estado, `[disc]` búsqueda, `[dp101]` tramas en bruto, `[unload]` cierre, `[tuyapi]` rastro de la biblioteca. La clave local y las claves de sesión nunca aparecen en el registro; el resumen de la configuración solo muestra la longitud de la clave.
+Cada mensaje empieza con una etiqueta de componente: `[cfg]` configuración, `[conn]` conexión, `[rx]` pasarela → estados, `[cmd]` estados → comandos, `[queue]` cola de comandos, `[poll]` actualización y solicitud de estado, `[disc]` búsqueda, `[dp101]` tramas en bruto, `[timer]` temporizadores, `[unload]` cierre, `[tuyapi]` rastro de la biblioteca. La clave local y las claves de sesión nunca aparecen en el registro; el resumen de la configuración solo muestra la longitud de la clave.
 
 Para cambiar el nivel: Admin → **Instancias** → modo experto → nivel de registro de `miboxer-wl433.0` → `debug` (o `silly` para el rastro del protocolo; después reinicie la instancia). Adjunte un registro debug y el contenido de `dp101.history` cuando informe de un problema.
 
@@ -140,6 +174,12 @@ Para cambiar el nivel: Admin → **Instancias** → modo experto → nivel de re
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.0 (2026-09-22)
+
+- (ssbingo) Temporizadores locales en la nueva pestaña *Temporizadores* de los ajustes de la instancia (hasta 50): hora del día o evento solar con desplazamiento y desviación aleatoria, días de la semana, temporada, zona, cualquier acción de luz y apagado tras una duración; estados `timers.active`, `timers.nextRun`, `timers.lastRun` y `timers.overview`
+- (ssbingo) Dirección de inicio de la entrada DMX512 de la pasarela legible y escribible (`settings.dmxAddress`)
+- (ssbingo) Documentado: comando DMX, tecla `06 05`, temporizadores en la nube de la aplicación MiBoxer; manuales con un nuevo capítulo sobre temporizadores
 
 ### 0.1.0 (2026-09-22)
 

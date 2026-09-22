@@ -28,7 +28,7 @@ Leuchten, Zonen und Szenen werden mit den eigenen Befehlen des Gateways im herst
 ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──► PW01 / PW02
 ```
 
-**Handbuch** mit jedem Schritt für Einsteiger erklärt (Installation, Einstellungen, Zonen, Beispiele, Fehlersuche): [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)) · [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)).
+**Handbuch** mit jedem Schritt für Einsteiger erklärt (Installation, Einstellungen, Zonen, Timer, Beispiele, Fehlersuche): [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)) · [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)).
 
 Die zugrunde liegende Recherche (Protokollanalyse, Quellen, Prüfplan, entschlüsselter Datenpunkt 101): [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Einsteigeranleitung zum Verknüpfen der Leuchten mit dem Gateway: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
 
@@ -49,6 +49,8 @@ Die zugrunde liegende Recherche (Protokollanalyse, Quellen, Prüfplan, entschlü
 4. **Tuya-Geräte akzeptieren meist nur eine lokale Verbindung.** In einem Test waren MiBoxer-App und Adapter gleichzeitig verbunden; scheitert die Verbindung aber immer wieder, schließe die App auf Smartphones im selben Netzwerk und steuere das Gateway nicht gleichzeitig mit anderen lokalen Integrationen (ioBroker.tuya, Home Assistant, tinytuya).
 
 ## Konfiguration
+
+Die Instanzeinstellungen haben zwei Reiter: **Gateway** (Verbindung und Zonensteuerung) und **Timer** (siehe [Timer](#timer)).
 
 | Einstellung | Beschreibung |
 | --- | --- |
@@ -71,6 +73,32 @@ Das Gateway steuert bis zu 8 Zonen (wie die Fernbedienung FUT086). Jeder Befehl 
 | **Ein Kanal je Zone** | `light.*` zeigt den Status des Gateways und sendet an alle Zonen. Zusätzlich steuern `zones.zone1` … `zones.zone8` jede Zone einzeln. Ein Zonenkanal zeigt die zuletzt an diese Zone gesendeten und vom Gateway bestätigten Werte; er bleibt leer, bis etwas an die Zone gesendet wurde. | Skripte und Visualisierungen, die Zonen direkt ansprechen |
 
 Wird die Einstellung geändert, werden die Datenpunkte der anderen Variante gelöscht.
+
+## Timer
+
+Der Reiter **Timer** der Instanzeinstellungen nimmt bis zu **50 Timer** auf. Sie laufen lokal im Adapter, auch ohne Internet, und können mehr als die Timer der MiBoxer-App: Sonnenereignisse mit Verschiebung, zufällige Abweichung, Saison, Zonen, Farben, Szenen und Ausschalten nach einer Dauer. Ein Timer wird mit **+** hinzugefügt, zum Ändern aufgeklappt und mit den Schaltflächen des Eintrags kopiert oder gelöscht. Änderungen gelten nach dem Speichern der Einstellungen (die Instanz startet neu).
+
+| Feld | Beschreibung |
+| --- | --- |
+| Aktiv | Schaltet diesen Timer ab, ohne ihn zu löschen |
+| Name | Erscheint im Log und in `timers.overview` |
+| Auslöser | *Uhrzeit* oder ein Sonnenereignis: Morgendämmerung, Sonnenaufgang, goldene Stunde (abends), Sonnenuntergang, Abenddämmerung, Nacht |
+| Uhrzeit | Nur beim Auslöser *Uhrzeit* |
+| Verschiebung | Minuten (−720 bis 720), negativ = früher – z. B. Sonnenuntergang −15 |
+| Zufällige Abweichung | Bis zu ± Minuten (0–120), bei jedem Lauf neu ausgewürfelt – für eine Anwesenheitssimulation |
+| Wochentage | Tage, an denen der Timer läuft |
+| Saison von / bis | `TT.MM.`, z. B. `01.05.` bis `30.09.`; eine Saison über den Jahreswechsel (`01.11.` bis `28.02.`) funktioniert ebenfalls; leer = ganzjährig |
+| Zone | Alle Zonen oder Zone 1–8 |
+| Aktion | Einschalten, Ausschalten, Weißlicht (Farbtemperatur 2700–6500 K), Farbe, Szene M1–M9, nur Helligkeit |
+| Helligkeit | 1–100 %, leer = unverändert (nicht bei *Ausschalten*) |
+| Ausschalten nach | Minuten (0–1440), 0 = nicht ausschalten (nicht bei *Ausschalten*) |
+
+- **Sonnenereignisse** werden aus der Position in den ioBroker-Systemeinstellungen (Breiten- und Längengrad) mit [suncalc](https://github.com/mourner/suncalc) berechnet. Ohne Position werden diese Timer mit einer Warnung ignoriert. An Tagen ohne das Ereignis (Polargebiete) läuft der Timer nicht.
+- Ein Timer sendet dieselben Befehle wie die Datenpunkte: bei der Zonensteuerung *Zonenwahl* an seine Zone (`light.zone` wird nicht verändert), bei *ein Kanal je Zone* über `zones.zone<n>` (alle Zonen: `light.*`). Das Gateway bestätigt sie wie jeden Befehl.
+- Ist das Gateway zum Zeitpunkt eines Timers nicht verbunden, entfällt dieser Lauf (Warnung im Log) – er wird nicht nachgeholt.
+- Timer mit unvollständigen Einstellungen werden ignoriert; das Log und `timers.overview` nennen den Grund.
+- Die Zeiten sind Ortszeiten des ioBroker-Systems; die Sommerzeit wird berücksichtigt.
+- Die **Timer der MiBoxer-App** werden in der Tuya-Cloud gespeichert und ausgeführt (sie schalten nur alle Zonen über Datenpunkt 20 ein oder aus und brauchen Internet). Der Adapter kann sie weder lesen noch ändern, sieht ihre Wirkung aber im Status. Beide Timerarten lassen sich gleichzeitig verwenden.
 
 ## Datenpunkte
 
@@ -95,6 +123,11 @@ Wird die Einstellung geändert, werden die Datenpunkte der anderen Variante gel�
 | `dp101.checksumValid` | Prüfsumme des letzten Frames ist gültig |
 | `dp101.history` | JSON-Liste der letzten 50 Frames (`rx` = empfangen, `tx` = gesendet) mit Zeitstempel; wiederholte gleiche Statusantworten werden nicht aufgenommen |
 | `raw.dp<n>` | Jeder weitere vom Gateway gemeldete Datenpunkt wird automatisch angelegt (schreibbar) |
+| `settings.dmxAddress` | Startadresse 1–512 des DMX512-Eingangs des Gateways – ab dort wertet es 5 Kanäle aus: Rot, Grün, Blau, Kaltweiß, Warmweiß (Menü *DMX* in der App). Schreiben sendet sie an die Zone aus `light.zone` (Zonenwahl) oder an alle Zonen; das Gateway bestätigt sie |
+| `timers.active` | `false` pausiert alle Timer (z. B. im Urlaub oder per Skript), `true` lässt sie wieder laufen |
+| `timers.nextRun` | Nächster Timerlauf mit dem Namen des Timers (`paused (…)`, solange `timers.active` `false` ist) |
+| `timers.lastRun` | Letzter Timerlauf mit Name und Aktion |
+| `timers.overview` | JSON-Liste aller Timer: Zeitplan, Aktion, nächster Lauf, Grund, falls der Timer ignoriert wird |
 
 Werte, die einen bestimmten Modus oder eingeschaltete Leuchten brauchen, sendet der Adapter wie die MiBoxer-App: eine Farbtemperatur im Farbmodus schaltet z. B. zuerst in den Weißmodus, eine Helligkeit bei ausgeschalteten Leuchten schaltet sie zuerst ein. Schnelle Änderungen (z. B. von einem Schieberegler) werden zusammengefasst, nur der letzte Wert wird gesendet. Befehle werden nur angenommen, solange das Gateway verbunden ist. Ein Befehl gilt als ausgeführt, wenn der nächste Status des Gateways seine Werte zeigt (etwa 2,5 s später); bis dahin ist der Datenpunkt nicht bestätigt.
 
@@ -106,9 +139,10 @@ Das WL-433 überträgt Leuchten, Zonen und Szenen im herstellerspezifischen Date
 | --- | --- | --- |
 | Befehl (App / Adapter → Gateway) | `41 00 00 0B cc vv vv vv vv zz 80 ss` | `cc` Befehl: `01` Farbton 0–255 (Wert in Byte 5–8, schaltet in den Farbmodus), `02` Helligkeit 1–100 %, `03` Farbtemperatur 0–38 (2700 K + 100 K je Stufe), `04` Sättigung 0–100 %, `05` Szene 1–9, `06` Taste (`01` ein, `02` aus, `03` S-, `04` S+, `06` Weißmodus); `zz` Zone: `00` alle, `01`–`08` |
 | Statusabfrage | `43 00 00 80 00 00 00 00 00 80 80 C3` | das Gateway antwortet mit einem Statusframe `44` |
-| Status (Gateway → App) | `42` / `44` `00 00 00 mm hh tt bb ss 0B 01 xx` | `42` Änderungsmeldung (etwa 2,5 s nach der letzten Änderung), `44` Antwort auf die Abfrage; `mm` Modus: `00` aus, `01` Farbe, `02` Weiß, `03`–`0B` Szene 1–9; `hh` Farbton, `tt` Farbtemperaturstufe, `bb` Helligkeit, `ss` Sättigung (0 im Weißmodus). Die Zone ist nicht Teil des Status |
+| Status (Gateway → App) | `42` / `44` `00 00 00 mm hh tt bb ss 0B dd xx` | `42` Änderungsmeldung (etwa 2,5 s nach der letzten Änderung), `44` Antwort auf die Abfrage; `mm` Modus: `00` aus, `01` Farbe, `02` Weiß, `03`–`0B` Szene 1–9; `hh` Farbton, `tt` Farbtemperaturstufe, `bb` Helligkeit, `ss` Sättigung (0 im Weißmodus), `dd` unteres Byte der DMX-Startadresse. Die Zone ist nicht Teil des Status |
+| DMX-Startadresse | `49 00 00 0B 02 aa aa 00 00 zz 80 ss` | `aa aa` Adresse 1–512 (oberes Byte, unteres Byte), `zz` Zone; Antwort `49 00 00 0B 02 01 tt bb ss aa aa xx` |
 
-Die Standard-Datenpunkte 20–23 leitet das Gateway aus diesen Befehlen ab; der Adapter verwendet nur Datenpunkt 20 (ein/aus, kommt früher als der Status) und folgt ansonsten dem Status aus Datenpunkt 101. Schreiben des Tuya-Farbdatenpunkts 24 ändert die Farbe der Leuchten nicht – auch die MiBoxer-App nutzt ihn nicht.
+Die Taste `06 05` schaltet die Leuchten ebenfalls aus (ein zweites Mal lässt sie sie aus, sie schaltet nicht um); was sie anders macht als `06 02`, ist noch unbekannt, der Adapter verwendet sie nicht. Die Standard-Datenpunkte 20–23 leitet das Gateway aus diesen Befehlen ab; der Adapter verwendet nur Datenpunkt 20 (ein/aus, kommt früher als der Status) und folgt ansonsten dem Status aus Datenpunkt 101. Schreiben des Tuya-Farbdatenpunkts 24 ändert die Farbe der Leuchten nicht – auch die MiBoxer-App nutzt ihn nicht.
 
 Rohzugriff für eigene Versuche: `dp101.hex` nimmt 11 Bytes an (die Prüfsumme wird angehängt), z. B. fragt `43 00 00 80 00 00 00 00 00 80 80` den Status ab.
 
@@ -117,7 +151,7 @@ Rohzugriff für eigene Versuche: `dp101.hex` nimmt 11 Bytes an (die Prüfsumme w
 - Das Gateway meldet einen Status für alle Leuchten (die letzte Einstellung), nicht den Status jeder Zone – siehe [Zonen](#zonen).
 - Die Geschwindigkeit einer Szene (S+ / S-) meldet das Gateway nicht.
 - Ob eine Leuchte einen Befehl per Funk tatsächlich empfangen hat, ist nicht erkennbar: der Status stammt vom Gateway.
-- Das Gateway meldet seinen Status weiterhin an die Tuya-Cloud. Eine vollständige Internetsperre kann es unzuverlässig machen.
+- Das Gateway meldet seinen Status weiterhin an die Tuya-Cloud. Eine vollständige Internetsperre kann es unzuverlässig machen. Die Timer der MiBoxer-App brauchen die Cloud, die Timer des Adapters nicht.
 
 ## Protokollierung und Fehlersuche
 
@@ -126,12 +160,12 @@ Der Adapter protokolliert nach einem festen Schema, damit das Log jederzeit für
 | Stufe | Was protokolliert wird |
 | --- | --- |
 | error | Konfigurationsfehler, mit denen der Adapter nicht arbeiten kann (Geräte-ID fehlt, Local Key nicht 16 Zeichen) |
-| warn | Probleme, bei denen du handeln musst – einmal gemeldet, danach nur noch auf Debug-Stufe, bis sie behoben sind: Gateway weist Verbindungen ab, Daten nicht entschlüsselbar (falscher Local Key), Befehle vom Gateway nicht bestätigt, Statusabfragen unbeantwortet, unerwartete Datenpunktwerte oder Statusframes |
-| info | Meilensteine: Konfigurationsübersicht beim Start, Gateway gefunden, verbunden, Verbindung verloren, Verbindung wieder stabil, Datenpunkte der anderen Zonenvariante entfernt |
-| debug | Jeder Schritt mit Eingaben, Entscheidungen und Laufzeiten: Datenpunktänderung → Umsetzung in Frames von Datenpunkt 101 (mit Grund für zusätzliche Frames wie „zuerst einschalten“) → Warteschlange → Senden → Bestätigung durch den Status (oder welcher Wert noch fehlt), jeder empfangene Datenpunkt und Status und die aktualisierten States, Statusabfragen, Suche. Befehle (`#12`) und Verbindungsversuche (`Attempt #3`) sind nummeriert, sodass sich alle Zeilen eines Befehls verfolgen lassen |
+| warn | Probleme, bei denen du handeln musst – einmal gemeldet, danach nur noch auf Debug-Stufe, bis sie behoben sind: Gateway weist Verbindungen ab, Daten nicht entschlüsselbar (falscher Local Key), Befehle vom Gateway nicht bestätigt, Statusabfragen unbeantwortet, unerwartete Datenpunktwerte oder Statusframes, Timer mit unvollständigen Einstellungen oder ohne Position für Sonnenereignisse, Timer, die die Leuchten nicht schalten konnten, eine vom Gateway nicht bestätigte DMX-Startadresse |
+| info | Meilensteine: Konfigurationsübersicht beim Start, Gateway gefunden, verbunden, Verbindung verloren, Verbindung wieder stabil, Datenpunkte der anderen Zonenvariante entfernt, Anzahl der aktiven Timer, Timer pausiert oder wieder aktiv |
+| debug | Jeder Schritt mit Eingaben, Entscheidungen und Laufzeiten: Datenpunktänderung → Umsetzung in Frames von Datenpunkt 101 (mit Grund für zusätzliche Frames wie „zuerst einschalten“) → Warteschlange → Senden → Bestätigung durch den Status (oder welcher Wert noch fehlt), jeder empfangene Datenpunkt und Status und die aktualisierten States, Statusabfragen, Suche, jeder Timer mit Zeitplan, nächstem Lauf (Sonnenereignis, Verschiebung, Zufallsabweichung) und Ausführung. Befehle (`#12`) und Verbindungsversuche (`Attempt #3`) sind nummeriert, sodass sich alle Zeilen eines Befehls verfolgen lassen |
 | silly | Zusätzlich die Protokollspur der Bibliothek tuyapi (Pakete, Ping/Pong) mit der Kennung `[tuyapi]` |
 
-Jede Meldung beginnt mit einer Kennung: `[cfg]` Konfiguration, `[conn]` Verbindung, `[rx]` Gateway → States, `[cmd]` States → Befehle, `[queue]` Befehlswarteschlange, `[poll]` Statusabfrage, `[disc]` Suche, `[dp101]` Roh-Frames, `[unload]` Beenden, `[tuyapi]` Bibliotheksspur. Local Key und Sitzungsschlüssel erscheinen nie im Log – die Konfigurationsübersicht zeigt nur die Länge des Schlüssels.
+Jede Meldung beginnt mit einer Kennung: `[cfg]` Konfiguration, `[conn]` Verbindung, `[rx]` Gateway → States, `[cmd]` States → Befehle, `[queue]` Befehlswarteschlange, `[poll]` Statusabfrage, `[disc]` Suche, `[dp101]` Roh-Frames, `[timer]` Timer, `[unload]` Beenden, `[tuyapi]` Bibliotheksspur. Local Key und Sitzungsschlüssel erscheinen nie im Log – die Konfigurationsübersicht zeigt nur die Länge des Schlüssels.
 
 Stufe ändern: Admin → **Instanzen** → Expertenmodus → Log-Stufe von `miboxer-wl433.0` → `debug` (oder `silly` für die Protokollspur; danach die Instanz neu starten). Bitte hänge bei Fehlermeldungen ein Debug-Log und den Inhalt von `dp101.history` an.
 
@@ -140,6 +174,12 @@ Stufe ändern: Admin → **Instanzen** → Expertenmodus → Log-Stufe von `mibo
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.0 (2026-09-22)
+
+- (ssbingo) Lokale Timer im neuen Reiter *Timer* der Instanzeinstellungen (bis zu 50): Uhrzeit oder Sonnenereignis mit Verschiebung und Zufallsabweichung, Wochentage, Saison, Zone, jede Lichtaktion und Ausschalten nach einer Dauer; Datenpunkte `timers.active`, `timers.nextRun`, `timers.lastRun` und `timers.overview`
+- (ssbingo) DMX-Startadresse des DMX512-Eingangs les- und schreibbar (`settings.dmxAddress`)
+- (ssbingo) Dokumentiert: DMX-Befehl, Taste `06 05`, Cloud-Timer der MiBoxer-App; Handbücher mit neuem Timer-Kapitel
 
 ### 0.1.0 (2026-09-22)
 

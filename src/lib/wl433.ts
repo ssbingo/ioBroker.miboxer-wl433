@@ -9,11 +9,14 @@
  *   cmd 01 hue 0..255 (value repeated in bytes 5..8, also switches to colour mode)
  *   cmd 02 brightness 1..100 %, cmd 03 colour temperature step 0..38, cmd 04 saturation 0..100 %, cmd 05 scene 1..9
  *   cmd 06 key: 01 on, 02 off, 03 speed down (S-), 04 speed up (S+), 06 white mode
+ *     (05 also switches off and is not a toggle, possibly a night light - not used by the app, not offered)
  *   zone 00 = all zones, 01..08 = zone 1..8
+ * DMX start address:                   49 00 00 0B 02 <addr hi> <addr lo> 00 00 <zone> 80 <sum>
+ *   answer of the gateway:             49 00 00 0B 02 01 <ct> <brightness> <saturation> <addr hi> <addr lo> <sum>
  * Status query:                        43 00 00 80 00 00 00 00 00 80 80 <sum>, answered with a type 44 frame
  * Status (gateway -> app):             42|44 00 00 00 <mode> <hue> <ct> <brightness> <saturation> 0B 01 <sum>
  *   42 = change report (about 2.5 s after the last change), 44 = answer to a status query
- *   mode 00 off, 01 colour, 02 white, 03..0B scene 1..9
+ *   mode 00 off, 01 colour, 02 white, 03..0B scene 1..9; byte 10 = DMX start address (low byte)
  * The status is one state for the whole gateway (the last setting of any zone), it does not contain the zone.
  */
 import { buildDp101Frame, DP101_FRAME_LENGTH, type Dp101Frame } from "./dp101";
@@ -24,7 +27,12 @@ export const FRAME_TYPE = {
     REPORT: 0x42,
     QUERY: 0x43,
     ANSWER: 0x44,
+    DMX: 0x49,
 } as const;
+
+/** Range of the DMX start address (the gateway uses 5 channels from there: R, G, B, cold white, warm white) */
+export const DMX_ADDRESS_MIN = 1;
+export const DMX_ADDRESS_MAX = 512;
 
 /** Byte 4 of a command frame */
 export const COMMAND = {
@@ -76,6 +84,8 @@ export interface Wl433Status {
     brightness: number;
     /** saturation 0..100 % */
     saturation: number;
+    /** byte 10: DMX start address, only the low byte (addresses above 255 are not visible in the status) */
+    dmxLowByte: number;
     /** bytes 1..10, identical values mean an identical status */
     signature: string;
 }
@@ -95,6 +105,7 @@ const KEY_NAMES: Record<number, string> = {
     [KEY.SPEED_DOWN]: "speed down (S-)",
     [KEY.SPEED_UP]: "speed up (S+)",
     [KEY.WHITE]: "white mode",
+    0x05: "off variant 05",
 };
 
 function byte(value: number, name: string, min: number, max: number): number {
@@ -157,6 +168,51 @@ export function buildCommand(command: number, value: number, zone: number): Dp10
     return buildDp101Frame([FRAME_TYPE.COMMAND, 0x00, 0x00, 0x0b, command, value, extra, extra, extra, zone, 0x80]);
 }
 
+/**
+ * Builds the command that sets the DMX start address, the gateway answers with a type 0x49 frame.
+ *
+ * @param address - DMX start address 1..512
+ * @param zone - zone the address applies to, 0 = all zones (the app sends the zone selected in the app)
+ * @throws {RangeError} on values outside the allowed ranges
+ */
+export function buildDmxCommand(address: number, zone: number): Dp101Frame {
+    byte(address, "DMX address", DMX_ADDRESS_MIN, DMX_ADDRESS_MAX);
+    byte(zone, "zone", ZONE_ALL, ZONE_COUNT);
+    return buildDp101Frame([
+        FRAME_TYPE.DMX,
+        0x00,
+        0x00,
+        0x0b,
+        0x02,
+        address >> 8,
+        address & 0xff,
+        0x00,
+        0x00,
+        zone,
+        0x80,
+    ]);
+}
+
+/**
+ * Decodes the answer of the gateway to a DMX command.
+ *
+ * @param frame - received DP 101 frame
+ * @returns the confirmed DMX start address, or null if the frame is no valid DMX answer
+ */
+export function parseDmxAnswer(frame: Dp101Frame): number | null {
+    const bytes = frame.bytes;
+    if (
+        !frame.checksumValid ||
+        bytes.length !== DP101_FRAME_LENGTH ||
+        bytes[0] !== FRAME_TYPE.DMX ||
+        bytes[5] !== 0x01
+    ) {
+        return null;
+    }
+    const address = (bytes[9] << 8) | bytes[10];
+    return address >= DMX_ADDRESS_MIN && address <= DMX_ADDRESS_MAX ? address : null;
+}
+
 /** Builds the status query the app sends when it opens, the gateway answers with a type 0x44 status frame. */
 export function buildStatusQuery(): Dp101Frame {
     return buildDp101Frame([FRAME_TYPE.QUERY, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x80]);
@@ -199,6 +255,7 @@ export function parseStatus(frame: Dp101Frame): Wl433Status | null {
         temperature: bytes[6],
         brightness: bytes[7],
         saturation: bytes[8],
+        dmxLowByte: bytes[10],
         signature: bytes.subarray(1, 11).toString("hex"),
     };
 }
