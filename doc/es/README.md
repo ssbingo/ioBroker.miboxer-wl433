@@ -30,7 +30,7 @@ ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──�
 
 **Manual** con cada paso explicado para principiantes (instalación, ajustes, zonas, temporizadores, ejemplos, solución de problemas): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
 
-Investigación de fondo (análisis del protocolo, fuentes, plan de pruebas, punto de datos 101 descifrado), en alemán: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guía para vincular las lámparas a la pasarela: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+Investigación de fondo (análisis del protocolo, fuentes, plan de pruebas, punto de datos 101 descifrado), en alemán: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guía para vincular las lámparas a la pasarela: [Guide_connect_PW01_to_WL-433.md](../Guide_connect_PW01_to_WL-433.md) ([PDF](../Guide_connect_PW01_to_WL-433.pdf); versión alemana: [PDF](../Anleitung_PW01_mit_WL-433_verbinden.pdf)).
 
 ## Hardware compatible
 
@@ -44,7 +44,7 @@ Investigación de fondo (análisis del protocolo, fuentes, plan de pruebas, punt
 ## Requisitos
 
 1. La pasarela está configurada en la aplicación MiBoxer y las lámparas están vinculadas a ella.
-2. **ID de dispositivo y clave local** de la pasarela. El fabricante no admite la plataforma de desarrolladores de Tuya para el WL-433, pero la aplicación MiBoxer escribe ambos valores en su registro de depuración: en Android, lea el registro con un visor de logcat como *LogFox* mientras la aplicación se inicia y controla la pasarela. **La clave local cambia cada vez que la pasarela se vuelve a emparejar**; entonces hay que leerla e introducirla de nuevo. Guía paso a paso para principiantes (en alemán, para Android, iPhone y iPad): [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
+2. **ID de dispositivo y clave local** de la pasarela. El fabricante no admite la plataforma de desarrolladores de Tuya para el WL-433, pero la aplicación MiBoxer escribe ambos valores en su registro de depuración: en Android, lea el registro con un visor de logcat como *LogFox* mientras la aplicación se inicia y controla la pasarela. **La clave local cambia cada vez que la pasarela se vuelve a emparejar**; entonces hay que leerla e introducirla de nuevo. Guía paso a paso para principiantes (en inglés, para Android, iPhone y iPad): [Guide_device-ID_and_local-key.md](../Guide_device-ID_and_local-key.md) ([PDF](../Guide_device-ID_and_local-key.pdf); versión alemana: [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md)).
 3. La pasarela es accesible desde ioBroker (misma red). Se recomienda una reserva DHCP; sin dirección IP configurada, el adaptador encuentra la pasarela mediante sus difusiones UDP (puertos 6666/6667).
 4. **Los dispositivos Tuya suelen aceptar solo una conexión local.** En una prueba, la aplicación MiBoxer y el adaptador estuvieron conectados a la vez; pero si la conexión falla una y otra vez, cierre la aplicación en los teléfonos de la misma red y no controle la pasarela al mismo tiempo con otras integraciones locales (ioBroker.tuya, Home Assistant, tinytuya).
 
@@ -174,6 +174,10 @@ Para cambiar el nivel: Admin → **Instancias** → modo experto → nivel de re
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.2 (2026-11-02)
+
+- (ssbingo) Versiones en inglés de las guías para principiantes (ID del dispositivo y clave local, vincular las lámparas PW01 a la pasarela); el botón de la guía en los ajustes de la instancia abre la guía en inglés o, con el admin en alemán, en alemán; dependencias actualizadas
 
 ### 0.2.1 (2026-09-22)
 

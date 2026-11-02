@@ -30,7 +30,7 @@ ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──�
 
 **Manual do utilizador** com cada passo explicado para principiantes (instalação, definições, zonas, temporizadores, exemplos, resolução de problemas): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
 
-Investigação de base (análise do protocolo, fontes, plano de testes, ponto de dados 101 descodificado), em alemão: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guia para associar as lâmpadas ao gateway: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+Investigação de base (análise do protocolo, fontes, plano de testes, ponto de dados 101 descodificado), em alemão: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guia para associar as lâmpadas ao gateway: [Guide_connect_PW01_to_WL-433.md](../Guide_connect_PW01_to_WL-433.md) ([PDF](../Guide_connect_PW01_to_WL-433.pdf); versão alemã: [PDF](../Anleitung_PW01_mit_WL-433_verbinden.pdf)).
 
 ## Hardware suportado
 
@@ -44,7 +44,7 @@ Investigação de base (análise do protocolo, fontes, plano de testes, ponto de
 ## Requisitos
 
 1. O gateway está configurado na aplicação MiBoxer e as lâmpadas estão associadas a ele.
-2. **ID do dispositivo e chave local** do gateway. O fabricante não suporta a plataforma de programadores Tuya para o WL-433, mas a aplicação MiBoxer escreve ambos os valores no seu registo de depuração: no Android, leia o registo com um visualizador logcat como o *LogFox* enquanto a aplicação arranca e controla o gateway. **A chave local muda sempre que o gateway é emparelhado de novo** — nesse caso tem de ser lida e introduzida novamente. Guia passo a passo para principiantes (em alemão, para Android, iPhone e iPad): [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
+2. **ID do dispositivo e chave local** do gateway. O fabricante não suporta a plataforma de programadores Tuya para o WL-433, mas a aplicação MiBoxer escreve ambos os valores no seu registo de depuração: no Android, leia o registo com um visualizador logcat como o *LogFox* enquanto a aplicação arranca e controla o gateway. **A chave local muda sempre que o gateway é emparelhado de novo** — nesse caso tem de ser lida e introduzida novamente. Guia passo a passo para principiantes (em inglês, para Android, iPhone e iPad): [Guide_device-ID_and_local-key.md](../Guide_device-ID_and_local-key.md) ([PDF](../Guide_device-ID_and_local-key.pdf); versão alemã: [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md)).
 3. O gateway está acessível a partir do ioBroker (mesma rede). Recomenda-se uma reserva DHCP; sem endereço IP configurado, o adaptador encontra o gateway através das suas difusões UDP (portas 6666/6667).
 4. **Os dispositivos Tuya normalmente aceitam apenas uma ligação local.** Num teste, a aplicação MiBoxer e o adaptador estiveram ligados ao mesmo tempo; mas se a ligação falhar repetidamente, feche a aplicação nos telemóveis da mesma rede e não controle o gateway ao mesmo tempo com outras integrações locais (ioBroker.tuya, Home Assistant, tinytuya).
 
@@ -174,6 +174,10 @@ Para mudar o nível: Admin → **Instâncias** → modo de especialista → nív
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.2 (2026-11-02)
+
+- (ssbingo) Versões em inglês dos guias para principiantes (ID do dispositivo e chave local, associar lâmpadas PW01 ao gateway); o botão do guia nas definições da instância abre o guia em inglês ou, com o admin em alemão, em alemão; dependências atualizadas
 
 ### 0.2.1 (2026-09-22)
 

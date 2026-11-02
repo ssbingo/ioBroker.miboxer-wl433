@@ -175,6 +175,10 @@ Stufe ändern: Admin → **Instanzen** → Expertenmodus → Log-Stufe von `mibo
     ### **WORK IN PROGRESS**
 -->
 
+### 0.2.2 (2026-11-02)
+
+- (ssbingo) Englische Fassungen der Einsteigeranleitungen (Geräte-ID und Local Key, PW01-Leuchten mit dem Gateway verbinden); der Anleitungs-Button in den Instanzeinstellungen öffnet die Anleitung auf Englisch bzw. bei deutscher Admin-Sprache auf Deutsch; Abhängigkeiten aktualisiert
+
 ### 0.2.1 (2026-09-22)
 
 - (ssbingo) Objektnamen in allen 11 Sprachen des Admins (Objektprüfung E6001 des ioBroker-Repositorys); vorhandene Objekte werden beim nächsten Start aktualisiert

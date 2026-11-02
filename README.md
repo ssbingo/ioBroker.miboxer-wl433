@@ -58,7 +58,9 @@ troubleshooting):
 The background research (protocol analysis, sources, test plan, decoded datapoint 101) is available in German:
 [doc/Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](doc/Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md)
 ([PDF](doc/Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). A beginner's guide for linking the lamps to the
-gateway: [doc/Anleitung_PW01_mit_WL-433_verbinden.pdf](doc/Anleitung_PW01_mit_WL-433_verbinden.pdf).
+gateway: [doc/Guide_connect_PW01_to_WL-433.md](doc/Guide_connect_PW01_to_WL-433.md)
+([PDF](doc/Guide_connect_PW01_to_WL-433.pdf); German:
+[PDF](doc/Anleitung_PW01_mit_WL-433_verbinden.pdf)).
 
 ### Supported hardware
 
@@ -75,9 +77,10 @@ gateway: [doc/Anleitung_PW01_mit_WL-433_verbinden.pdf](doc/Anleitung_PW01_mit_WL
 2. **Device ID and local key** of the gateway. The manufacturer does not support the Tuya developer platform for the
    WL-433, but the MiBoxer app writes both values to its debug log: on Android, read the log with a logcat viewer such
    as *LogFox* while the app starts and controls the gateway. **The local key changes whenever the gateway is paired
-   again** — then it has to be read and entered again. A beginner's step-by-step guide (German, for Android, iPhone
-   and iPad): [doc/Anleitung_Geraete-ID_und_Local-Key_auslesen.md](doc/Anleitung_Geraete-ID_und_Local-Key_auslesen.md)
-   ([PDF](doc/Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
+   again** — then it has to be read and entered again. A beginner's step-by-step guide (for Android, iPhone
+   and iPad): [doc/Guide_device-ID_and_local-key.md](doc/Guide_device-ID_and_local-key.md)
+   ([PDF](doc/Guide_device-ID_and_local-key.pdf); German:
+   [doc/Anleitung_Geraete-ID_und_Local-Key_auslesen.md](doc/Anleitung_Geraete-ID_und_Local-Key_auslesen.md)).
 3. The gateway is reachable from ioBroker (same network). A DHCP reservation for the gateway is recommended; if no IP
    address is configured, the adapter finds the gateway via its UDP broadcasts (ports 6666/6667).
 4. **Tuya devices usually accept only one local connection.** In a test the MiBoxer app and the adapter were connected
@@ -277,6 +280,10 @@ calculated with [suncalc](https://github.com/mourner/suncalc) by Vladimir Agafon
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.2 (2026-11-02)
+
+- (ssbingo) English versions of the beginner guides (device ID and local key, linking PW01 lamps to the gateway); the guide button in the instance settings opens the guide in English or, with German admin language, in German; dependency updates
 
 ### 0.2.1 (2026-09-22)
 

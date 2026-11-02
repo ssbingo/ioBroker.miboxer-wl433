@@ -4,8 +4,8 @@
 
 | | |
 | --- | --- |
-| Adapter-Version | 0.2.0 |
-| Stand | 22.09.2026 |
+| Adapter-Version | 0.2.2 |
+| Stand | 02.11.2026 |
 | Voraussetzung | ioBroker mit Admin ab Version 8, js-controller ab 6.0.11, Node.js ab 22 |
 | Sprache | Deutsch · [English version](Manual_miboxer-wl433.md) |
 

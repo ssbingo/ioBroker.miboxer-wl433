@@ -30,7 +30,7 @@ ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──�
 
 **Manuel** expliquant chaque étape pour les débutants (installation, paramètres, zones, minuteries, exemples, dépannage) : [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
 
-Recherche de fond (analyse du protocole, sources, plan de test, point de données 101 décodé), en allemand : [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guide pour associer les lampes à la passerelle : [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+Recherche de fond (analyse du protocole, sources, plan de test, point de données 101 décodé), en allemand : [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Guide pour associer les lampes à la passerelle : [Guide_connect_PW01_to_WL-433.md](../Guide_connect_PW01_to_WL-433.md) ([PDF](../Guide_connect_PW01_to_WL-433.pdf); version allemande: [PDF](../Anleitung_PW01_mit_WL-433_verbinden.pdf)).
 
 ## Matériel pris en charge
 
@@ -44,7 +44,7 @@ Recherche de fond (analyse du protocole, sources, plan de test, point de donnée
 ## Prérequis
 
 1. La passerelle est configurée dans l'application MiBoxer et les lampes y sont associées.
-2. **ID d'appareil et clé locale** de la passerelle. Le fabricant ne prend pas en charge la plateforme développeur Tuya pour le WL-433, mais l'application MiBoxer écrit les deux valeurs dans son journal de débogage : sous Android, lisez le journal avec un lecteur logcat comme *LogFox* pendant que l'application démarre et pilote la passerelle. **La clé locale change à chaque nouvel appairage de la passerelle** — elle doit alors être relue et saisie à nouveau. Guide pas à pas pour débutants (en allemand, pour Android, iPhone et iPad) : [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
+2. **ID d'appareil et clé locale** de la passerelle. Le fabricant ne prend pas en charge la plateforme développeur Tuya pour le WL-433, mais l'application MiBoxer écrit les deux valeurs dans son journal de débogage : sous Android, lisez le journal avec un lecteur logcat comme *LogFox* pendant que l'application démarre et pilote la passerelle. **La clé locale change à chaque nouvel appairage de la passerelle** — elle doit alors être relue et saisie à nouveau. Guide pas à pas pour débutants (en anglais, pour Android, iPhone et iPad) : [Guide_device-ID_and_local-key.md](../Guide_device-ID_and_local-key.md) ([PDF](../Guide_device-ID_and_local-key.pdf); version allemande: [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md)).
 3. La passerelle est joignable depuis ioBroker (même réseau). Une réservation DHCP est recommandée ; sans adresse IP configurée, l'adaptateur trouve la passerelle grâce à ses diffusions UDP (ports 6666/6667).
 4. **Les appareils Tuya n'acceptent généralement qu'une seule connexion locale.** Lors d'un test, l'application MiBoxer et l'adaptateur étaient connectés en même temps ; mais si la connexion échoue sans cesse, fermez l'application sur les téléphones du même réseau et ne pilotez pas la passerelle en même temps avec d'autres intégrations locales (ioBroker.tuya, Home Assistant, tinytuya).
 
@@ -174,6 +174,10 @@ Pour changer le niveau : Admin → **Instances** → mode expert → niveau de j
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.2 (2026-11-02)
+
+- (ssbingo) Versions anglaises des guides pour débutants (ID de l'appareil et clé locale, associer les lampes PW01 à la passerelle) ; le bouton du guide dans les paramètres de l'instance ouvre le guide en anglais ou, avec l'admin en allemand, en allemand ; dépendances mises à jour
 
 ### 0.2.1 (2026-09-22)
 

@@ -4,8 +4,8 @@
 
 | | |
 | --- | --- |
-| Adapter version | 0.2.0 |
-| Date | 2026-09-22 |
+| Adapter version | 0.2.2 |
+| Date | 2026-11-02 |
 | Requirements | ioBroker with Admin 8 or newer, js-controller 6.0.11 or newer, Node.js 22 or newer |
 | Language | English · [Deutsche Fassung](Handbuch_miboxer-wl433.md) |
 
@@ -105,7 +105,7 @@ The adapter takes over the lamps the way they are set up in the app. So first se
 
 1. Install the **MiBoxer** app (manufacturer Futlight) on your phone – from Google Play (Android) or the App Store (iPhone/iPad).
 2. Create an account and add the **WL-433 gateway**. Follow the instructions of the app.
-3. Link every pool lamp to a **zone** of the gateway (zone 1 to 8). The guide [Anleitung_PW01_mit_WL-433_verbinden.pdf](Anleitung_PW01_mit_WL-433_verbinden.pdf) (German) explains this step by step.
+3. Link every pool lamp to a **zone** of the gateway (zone 1 to 8). The guide [Guide_connect_PW01_to_WL-433.md](Guide_connect_PW01_to_WL-433.md) ([PDF](Guide_connect_PW01_to_WL-433.pdf)) explains this step by step.
 4. Try out in the app whether all lamps can be switched.
 
 > [!TIP]
@@ -131,7 +131,7 @@ The adapter needs two values to be allowed to talk to the gateway:
 
 The MiBoxer app does not show these values anywhere. But it writes them to its internal **log** – and this log can be read on an **Android device**.
 
-**The easiest way is the detailed guide** [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf), German). It explains every tap – completely without a computer using the apps *LogFox* and *Shizuku*, and also what you can do with an iPhone or iPad.
+**The easiest way is the detailed guide** [Guide_device-ID_and_local-key.md](Guide_device-ID_and_local-key.md) ([PDF](Guide_device-ID_and_local-key.pdf)). It explains every tap – completely without a computer using the apps *LogFox* and *Shizuku*, and also what you can do with an iPhone or iPad.
 
 ### 5.1 Alternative: with a computer and a USB cable (Windows)
 

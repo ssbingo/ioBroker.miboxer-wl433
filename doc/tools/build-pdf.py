@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Renders the manuals in doc/ to PDF with the print design of doc/tools/manual.css.
 
-Usage (from the repository root):
-    python3 doc/tools/build-pdf.py doc/Handbuch_miboxer-wl433.md doc/Manual_miboxer-wl433.md
+Usage (from the repository root; keep stdin closed, md-to-pdf waits for it otherwise):
+    python3 doc/tools/build-pdf.py doc/Handbuch_miboxer-wl433.md doc/Manual_miboxer-wl433.md < /dev/null
 
 Needs md-to-pdf (https://github.com/simonhaenisch/md-to-pdf). Set MD_TO_PDF to its executable, otherwise
 "npx --yes md-to-pdf" is used. The Markdown files stay GitHub friendly; only the temporary copy that is rendered is
@@ -55,8 +55,8 @@ def convert(markdown: str, lang: str) -> tuple[str, str]:
         body = cover + toc + re.sub(r"^## (.+)$", r'<h2 class="chapter">\1</h2>', body, flags=re.M)
     else:
         # other documents: same design, no cover
-        date = re.search(r"Stand (\d{2}\.\d{2}\.\d{4})", markdown)
-        version = f"Stand {date.group(1)}" if date else ""
+        date = re.search(r"Stand:? (\d{1,2}\.? ?[\w.]+ ?\d{4})", markdown) or re.search(r"As of (\d{1,2} \w+ \d{4})", markdown)
+        version = (f"Stand {date.group(1)}" if lang == "de" else f"As of {date.group(1)}") if date else ""
         body = markdown
 
     # GitHub alerts
@@ -87,10 +87,13 @@ def convert(markdown: str, lang: str) -> tuple[str, str]:
 def main() -> None:
     renderer = os.environ.get("MD_TO_PDF", "npx --yes md-to-pdf").split()
     for source in sys.argv[1:]:
-        lang = "en" if os.path.basename(source).startswith("Manual") else "de"
         folder = os.path.dirname(os.path.abspath(source))
         with open(source, encoding="utf-8") as file:
-            markdown, footer = convert(file.read(), lang)
+            text = file.read()
+        # language from the front matter ("lang: en"), otherwise English for "Manual*" and German for the rest
+        front = re.match(r"---\n.*?^lang: *(\w+)$.*?\n---\n", text, re.M | re.S)
+        lang = front.group(1) if front else ("en" if os.path.basename(source).startswith("Manual") else "de")
+        markdown, footer = convert(text, lang)
         with tempfile.NamedTemporaryFile("w", suffix=".md", dir=folder, delete=False, encoding="utf-8") as tmp:
             tmp.write(markdown)
             temp_md = tmp.name

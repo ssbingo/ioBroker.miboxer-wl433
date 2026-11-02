@@ -30,7 +30,7 @@ ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──�
 
 **Руководство пользователя**, в котором каждый шаг объяснён для начинающих (установка, настройки, зоны, таймеры, примеры, устранение неполадок): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
 
-Исходное исследование (анализ протокола, источники, план проверки, расшифрованная точка данных 101), на немецком: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Инструкция по привязке ламп к шлюзу: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+Исходное исследование (анализ протокола, источники, план проверки, расшифрованная точка данных 101), на немецком: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Инструкция по привязке ламп к шлюзу: [Guide_connect_PW01_to_WL-433.md](../Guide_connect_PW01_to_WL-433.md) ([PDF](../Guide_connect_PW01_to_WL-433.pdf); немецкая версия: [PDF](../Anleitung_PW01_mit_WL-433_verbinden.pdf)).
 
 ## Поддерживаемое оборудование
 
@@ -44,7 +44,7 @@ ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──�
 ## Требования
 
 1. Шлюз настроен в приложении MiBoxer, и лампы к нему привязаны.
-2. **ID устройства и локальный ключ** шлюза. Производитель не поддерживает платформу разработчиков Tuya для WL-433, но приложение MiBoxer записывает оба значения в свой журнал отладки: на Android читайте журнал программой просмотра logcat, например *LogFox*, пока приложение запускается и управляет шлюзом. **Локальный ключ меняется при каждом повторном сопряжении шлюза** — тогда его нужно снова прочитать и ввести. Пошаговая инструкция для начинающих (на немецком, для Android, iPhone и iPad): [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
+2. **ID устройства и локальный ключ** шлюза. Производитель не поддерживает платформу разработчиков Tuya для WL-433, но приложение MiBoxer записывает оба значения в свой журнал отладки: на Android читайте журнал программой просмотра logcat, например *LogFox*, пока приложение запускается и управляет шлюзом. **Локальный ключ меняется при каждом повторном сопряжении шлюза** — тогда его нужно снова прочитать и ввести. Пошаговая инструкция для начинающих (на английском, для Android, iPhone и iPad): [Guide_device-ID_and_local-key.md](../Guide_device-ID_and_local-key.md) ([PDF](../Guide_device-ID_and_local-key.pdf); немецкая версия: [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md)).
 3. Шлюз доступен из ioBroker (та же сеть). Рекомендуется резервирование DHCP; без указанного IP-адреса адаптер находит шлюз по его широковещательным UDP-сообщениям (порты 6666/6667).
 4. **Устройства Tuya обычно принимают только одно локальное подключение.** В тесте приложение MiBoxer и адаптер были подключены одновременно; но если подключение снова и снова не удаётся, закройте приложение на телефонах в той же сети и не управляйте шлюзом одновременно другими локальными интеграциями (ioBroker.tuya, Home Assistant, tinytuya).
 
@@ -174,6 +174,10 @@ WL-433 передаёт лампы, зоны и сцены в специфичн
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.2 (2026-11-02)
+
+- (ssbingo) Английские версии инструкций для начинающих (ID устройства и локальный ключ, привязка ламп PW01 к шлюзу); кнопка инструкции в настройках экземпляра открывает инструкцию на английском, а при немецком языке админки — на немецком; обновлены зависимости
 
 ### 0.2.1 (2026-09-22)
 

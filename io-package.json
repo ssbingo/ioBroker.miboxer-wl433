@@ -1,8 +1,21 @@
 {
     "common": {
         "name": "miboxer-wl433",
-        "version": "0.2.1",
+        "version": "0.2.2",
         "news": {
+            "0.2.2": {
+                "en": "English versions of the beginner guides (device ID and local key, linking PW01 lamps to the gateway); the guide button in the instance settings opens the guide in English or, with German admin language, in German; dependency updates",
+                "de": "Englische Fassungen der Einsteigeranleitungen (Geräte-ID und Local Key, PW01-Leuchten mit dem Gateway verbinden); der Anleitungs-Button in den Instanzeinstellungen öffnet die Anleitung auf Englisch bzw. bei deutscher Admin-Sprache auf Deutsch; Abhängigkeiten aktualisiert",
+                "ru": "Английские версии инструкций для начинающих (ID устройства и локальный ключ, привязка ламп PW01 к шлюзу); кнопка инструкции в настройках экземпляра открывает инструкцию на английском, а при немецком языке админки — на немецком; обновлены зависимости",
+                "pt": "Versões em inglês dos guias para principiantes (ID do dispositivo e chave local, associar lâmpadas PW01 ao gateway); o botão do guia nas definições da instância abre o guia em inglês ou, com o admin em alemão, em alemão; dependências atualizadas",
+                "nl": "Engelse versies van de beginnershandleidingen (apparaat-ID en local key, PW01-lampen aan de gateway koppelen); de handleidingknop in de instantie-instellingen opent de handleiding in het Engels of, bij Duitse admin-taal, in het Duits; afhankelijkheden bijgewerkt",
+                "fr": "Versions anglaises des guides pour débutants (ID de l'appareil et clé locale, associer les lampes PW01 à la passerelle) ; le bouton du guide dans les paramètres de l'instance ouvre le guide en anglais ou, avec l'admin en allemand, en allemand ; dépendances mises à jour",
+                "it": "Versioni inglesi delle guide per principianti (ID dispositivo e chiave locale, collegare le lampade PW01 al gateway); il pulsante della guida nelle impostazioni dell'istanza apre la guida in inglese o, con l'admin in tedesco, in tedesco; dipendenze aggiornate",
+                "es": "Versiones en inglés de las guías para principiantes (ID del dispositivo y clave local, vincular las lámparas PW01 a la pasarela); el botón de la guía en los ajustes de la instancia abre la guía en inglés o, con el admin en alemán, en alemán; dependencias actualizadas",
+                "pl": "Angielskie wersje poradników dla początkujących (ID urządzenia i klucz lokalny, łączenie lamp PW01 z bramką); przycisk poradnika w ustawieniach instancji otwiera poradnik po angielsku, a przy niemieckim języku panelu admin po niemiecku; zaktualizowane zależności",
+                "uk": "Англійські версії інструкцій для початківців (ID пристрою та локальний ключ, прив'язка ламп PW01 до шлюзу); кнопка інструкції в налаштуваннях екземпляра відкриває інструкцію англійською, а за німецької мови адмінки — німецькою; оновлено залежності",
+                "zh-cn": "新手指南的英文版本（设备 ID 和本地密钥、将 PW01 灯具连接到网关）；实例设置中的指南按钮打开英文指南，管理界面为德语时打开德语指南；更新依赖项"
+            },
             "0.2.1": {
                 "en": "Object names in all 11 languages of the admin (object check E6001 of the ioBroker repository); existing objects are updated at the next start",
                 "de": "Objektnamen in allen 11 Sprachen des Admins (Objektprüfung E6001 des ioBroker-Repositorys); vorhandene Objekte werden beim nächsten Start aktualisiert",

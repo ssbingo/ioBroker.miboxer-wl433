@@ -30,7 +30,7 @@ ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──�
 
 **Podręcznik użytkownika** z każdym krokiem wyjaśnionym dla początkujących (instalacja, ustawienia, strefy, timery, przykłady, rozwiązywanie problemów): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
 
-Badania źródłowe (analiza protokołu, źródła, plan testów, rozszyfrowany punkt danych 101), po niemiecku: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Poradnik łączenia lamp z bramką: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+Badania źródłowe (analiza protokołu, źródła, plan testów, rozszyfrowany punkt danych 101), po niemiecku: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Poradnik łączenia lamp z bramką: [Guide_connect_PW01_to_WL-433.md](../Guide_connect_PW01_to_WL-433.md) ([PDF](../Guide_connect_PW01_to_WL-433.pdf); wersja niemiecka: [PDF](../Anleitung_PW01_mit_WL-433_verbinden.pdf)).
 
 ## Obsługiwany sprzęt
 
@@ -44,7 +44,7 @@ Badania źródłowe (analiza protokołu, źródła, plan testów, rozszyfrowany 
 ## Wymagania
 
 1. Bramka jest skonfigurowana w aplikacji MiBoxer, a lampy są z nią powiązane.
-2. **ID urządzenia i klucz lokalny** bramki. Producent nie obsługuje platformy deweloperskiej Tuya dla WL-433, ale aplikacja MiBoxer zapisuje obie wartości w swoim dzienniku debugowania: na Androidzie odczytaj dziennik przeglądarką logcat, np. *LogFox*, podczas gdy aplikacja uruchamia się i steruje bramką. **Klucz lokalny zmienia się przy każdym ponownym parowaniu bramki** — wtedy trzeba go ponownie odczytać i wpisać. Poradnik krok po kroku dla początkujących (po niemiecku, dla Androida, iPhone'a i iPada): [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
+2. **ID urządzenia i klucz lokalny** bramki. Producent nie obsługuje platformy deweloperskiej Tuya dla WL-433, ale aplikacja MiBoxer zapisuje obie wartości w swoim dzienniku debugowania: na Androidzie odczytaj dziennik przeglądarką logcat, np. *LogFox*, podczas gdy aplikacja uruchamia się i steruje bramką. **Klucz lokalny zmienia się przy każdym ponownym parowaniu bramki** — wtedy trzeba go ponownie odczytać i wpisać. Poradnik krok po kroku dla początkujących (po angielsku, dla Androida, iPhone'a i iPada): [Guide_device-ID_and_local-key.md](../Guide_device-ID_and_local-key.md) ([PDF](../Guide_device-ID_and_local-key.pdf); wersja niemiecka: [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md)).
 3. Bramka jest osiągalna z ioBroker (ta sama sieć). Zalecana jest rezerwacja DHCP; bez skonfigurowanego adresu IP adapter znajduje bramkę dzięki jej rozgłoszeniom UDP (porty 6666/6667).
 4. **Urządzenia Tuya zazwyczaj akceptują tylko jedno połączenie lokalne.** W teście aplikacja MiBoxer i adapter były połączone jednocześnie; jeśli jednak połączenie wciąż się nie udaje, zamknij aplikację na telefonach w tej samej sieci i nie steruj bramką jednocześnie innymi integracjami lokalnymi (ioBroker.tuya, Home Assistant, tinytuya).
 
@@ -174,6 +174,10 @@ Zmiana poziomu: Admin → **Instancje** → tryb eksperta → poziom logowania `
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.2 (2026-11-02)
+
+- (ssbingo) Angielskie wersje poradników dla początkujących (ID urządzenia i klucz lokalny, łączenie lamp PW01 z bramką); przycisk poradnika w ustawieniach instancji otwiera poradnik po angielsku, a przy niemieckim języku panelu admin po niemiecku; zaktualizowane zależności
 
 ### 0.2.1 (2026-09-22)
 

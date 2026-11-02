@@ -30,7 +30,7 @@ ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──�
 
 为初学者逐步讲解的**使用手册**（安装、设置、区域、定时器、示例、故障排除）：[English](../Manual_miboxer-wl433.md)（[PDF](../Manual_miboxer-wl433.pdf)）· [Deutsch](../Handbuch_miboxer-wl433.md)（[PDF](../Handbuch_miboxer-wl433.pdf)）。
 
-背景研究（协议分析、来源、测试计划、已解码的数据点 101），德语：[Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md)（[PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)）。将灯与网关关联的入门指南：[Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf)。
+背景研究（协议分析、来源、测试计划、已解码的数据点 101），德语：[Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md)（[PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)）。将灯与网关关联的入门指南：[Guide_connect_PW01_to_WL-433.md](../Guide_connect_PW01_to_WL-433.md)（[PDF](../Guide_connect_PW01_to_WL-433.pdf)；德语版：[PDF](../Anleitung_PW01_mit_WL-433_verbinden.pdf)）。
 
 ## 支持的硬件
 
@@ -44,7 +44,7 @@ ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──�
 ## 前提条件
 
 1. 网关已在 MiBoxer 应用中设置，并且灯已与其关联。
-2. 网关的**设备 ID 和本地密钥**。厂商不支持在涂鸦开发者平台上使用 WL-433，但 MiBoxer 应用会把这两个值写入其调试日志：在 Android 上，在应用启动并控制网关时，用 *LogFox* 等 logcat 查看器读取日志。**每次重新配对网关时本地密钥都会改变**——之后必须重新读取并输入。面向初学者的分步指南（德语，适用于 Android、iPhone 和 iPad）：[Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md)（[PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)）。
+2. 网关的**设备 ID 和本地密钥**。厂商不支持在涂鸦开发者平台上使用 WL-433，但 MiBoxer 应用会把这两个值写入其调试日志：在 Android 上，在应用启动并控制网关时，用 *LogFox* 等 logcat 查看器读取日志。**每次重新配对网关时本地密钥都会改变**——之后必须重新读取并输入。面向初学者的分步指南（英文，适用于 Android、iPhone 和 iPad）：[Guide_device-ID_and_local-key.md](../Guide_device-ID_and_local-key.md)（[PDF](../Guide_device-ID_and_local-key.pdf)；德语版：[Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md)）。
 3. ioBroker 可以访问网关（同一网络）。建议为网关设置 DHCP 保留；若未配置 IP 地址，适配器会通过网关的 UDP 广播（端口 6666/6667）找到它。
 4. **涂鸦设备通常只接受一个本地连接。** 在一次测试中 MiBoxer 应用和适配器同时保持连接；但如果连接反复失败，请关闭同一网络中手机上的应用，并且不要同时用其他本地集成（ioBroker.tuya、Home Assistant、tinytuya）控制网关。
 
@@ -174,6 +174,10 @@ WL-433 通过厂商专用数据点 101 传输灯、区域和场景：12 字节�
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.2 (2026-11-02)
+
+- (ssbingo) 新手指南的英文版本（设备 ID 和本地密钥、将 PW01 灯具连接到网关）；实例设置中的指南按钮打开英文指南，管理界面为德语时打开德语指南；更新依赖项
 
 ### 0.2.1 (2026-09-22)
 

@@ -30,7 +30,7 @@ ioBroker ──LAN: Tuya 3.3, TCP 6668──► WL-433 ──LoRa 433 MHz──�
 
 **Gebruikershandleiding** waarin elke stap voor beginners wordt uitgelegd (installatie, instellingen, zones, timers, voorbeelden, probleemoplossing): [English](../Manual_miboxer-wl433.md) ([PDF](../Manual_miboxer-wl433.pdf)) · [Deutsch](../Handbuch_miboxer-wl433.md) ([PDF](../Handbuch_miboxer-wl433.pdf)).
 
-Achtergrondonderzoek (protocolanalyse, bronnen, testplan, ontcijferd datapunt 101), in het Duits: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Handleiding voor het koppelen van de lampen aan de gateway: [Anleitung_PW01_mit_WL-433_verbinden.pdf](../Anleitung_PW01_mit_WL-433_verbinden.pdf).
+Achtergrondonderzoek (protocolanalyse, bronnen, testplan, ontcijferd datapunt 101), in het Duits: [Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.md) ([PDF](../Miboxer_WL-433_PW01_Protokollanalyse_lokale_Steuerung.pdf)). Handleiding voor het koppelen van de lampen aan de gateway: [Guide_connect_PW01_to_WL-433.md](../Guide_connect_PW01_to_WL-433.md) ([PDF](../Guide_connect_PW01_to_WL-433.pdf); Duitse versie: [PDF](../Anleitung_PW01_mit_WL-433_verbinden.pdf)).
 
 ## Ondersteunde hardware
 
@@ -44,7 +44,7 @@ Achtergrondonderzoek (protocolanalyse, bronnen, testplan, ontcijferd datapunt 10
 ## Vereisten
 
 1. De gateway is ingericht in de MiBoxer-app en de lampen zijn eraan gekoppeld.
-2. **Apparaat-ID en local key** van de gateway. De fabrikant ondersteunt het Tuya-ontwikkelaarsplatform niet voor de WL-433, maar de MiBoxer-app schrijft beide waarden naar zijn debuglog: lees op Android het log met een logcat-viewer zoals *LogFox* terwijl de app start en de gateway bestuurt. **De local key verandert telkens wanneer de gateway opnieuw wordt gekoppeld** — dan moet hij opnieuw worden uitgelezen en ingevoerd. Stap-voor-stapgids voor beginners (in het Duits, voor Android, iPhone en iPad): [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md) ([PDF](../Anleitung_Geraete-ID_und_Local-Key_auslesen.pdf)).
+2. **Apparaat-ID en local key** van de gateway. De fabrikant ondersteunt het Tuya-ontwikkelaarsplatform niet voor de WL-433, maar de MiBoxer-app schrijft beide waarden naar zijn debuglog: lees op Android het log met een logcat-viewer zoals *LogFox* terwijl de app start en de gateway bestuurt. **De local key verandert telkens wanneer de gateway opnieuw wordt gekoppeld** — dan moet hij opnieuw worden uitgelezen en ingevoerd. Stap-voor-stapgids voor beginners (in het Engels, voor Android, iPhone en iPad): [Guide_device-ID_and_local-key.md](../Guide_device-ID_and_local-key.md) ([PDF](../Guide_device-ID_and_local-key.pdf); Duitse versie: [Anleitung_Geraete-ID_und_Local-Key_auslesen.md](../Anleitung_Geraete-ID_und_Local-Key_auslesen.md)).
 3. De gateway is bereikbaar vanuit ioBroker (hetzelfde netwerk). Een DHCP-reservering wordt aanbevolen; zonder ingesteld IP-adres vindt de adapter de gateway via zijn UDP-broadcasts (poorten 6666/6667).
 4. **Tuya-apparaten accepteren meestal maar één lokale verbinding.** Bij een test waren de MiBoxer-app en de adapter tegelijk verbonden; mislukt de verbinding echter steeds weer, sluit dan de app op telefoons in hetzelfde netwerk en bestuur de gateway niet tegelijk met andere lokale integraties (ioBroker.tuya, Home Assistant, tinytuya).
 
@@ -174,6 +174,10 @@ Niveau wijzigen: Admin → **Instanties** → expertmodus → logniveau van `mib
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### 0.2.2 (2026-11-02)
+
+- (ssbingo) Engelse versies van de beginnershandleidingen (apparaat-ID en local key, PW01-lampen aan de gateway koppelen); de handleidingknop in de instantie-instellingen opent de handleiding in het Engels of, bij Duitse admin-taal, in het Duits; afhankelijkheden bijgewerkt
 
 ### 0.2.1 (2026-09-22)
 
